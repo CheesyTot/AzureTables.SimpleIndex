@@ -13,9 +13,9 @@ jobs:
 
     steps:
     - name: Install GitVersion
-      uses: actions/setup-gitversion@v1.0.0
+      uses: actions/gitversion/setup-gitversion@v1.0.0
       with:
-        gitversion-version: 5.1.1
+        versionSpec: 5.x
     - uses: actions/checkout@v3
     - name: Setup .NET
       uses: actions/setup-dotnet@v2
