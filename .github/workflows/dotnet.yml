@@ -16,7 +16,10 @@ jobs:
       uses: gittools/actions/gitversion/setup@v0.9.7
       with:
         versionSpec: '5.x'
-    - uses: actions/checkout@v3
+    - name: Checkout Code
+      uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
     - name: Setup .NET
       uses: actions/setup-dotnet@v2
       with:
