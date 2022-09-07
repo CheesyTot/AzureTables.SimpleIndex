@@ -13,9 +13,9 @@ jobs:
 
     steps:
     - name: Install GitVersion
-      uses: GitTools/actions/gitversion/setup-gitversion@v0.9.13
+      uses: gittools/actions/gitversion/setup@v0.9.7
       with:
-        versionSpec: 5.x
+        versionSpec: '5.x'
     - uses: actions/checkout@v3
     - name: Setup .NET
       uses: actions/setup-dotnet@v2
@@ -23,7 +23,7 @@ jobs:
         dotnet-version: 6.0.x
     - name: Determine Version
       id: gitversion
-      uses: GitTools/actions/gitversion/execute@v0.9.13
+      uses: gittools/actions/gitversion/execute@v0.9.13
       with:
         useConfigFile: true
         configFilePath: ./.github/gitversion.yml
