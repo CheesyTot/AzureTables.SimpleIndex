@@ -15,3 +15,21 @@ public class MyEntity : SimpleIndexTableEntity
     public string IndexedProperty { get; set; }
 }
 ```
+### Query by indexed properties
+
+```
+public class MyDataAccess
+{
+    private readonly ISimpleIndexRepository<MyEntity> _repo;
+
+    public MyDataAccess(ISimpleIndexRepository<MyEntity> repo)
+    {
+        _repo = repo;
+    }
+    
+    public async Task<IEnumerable<MyEntity>> GetIndexedPropertyAsync(string val)
+    {
+        return await _repo.GetByIndexedPropertyAsync("IndexedProperty", val);
+    }
+}
+```
