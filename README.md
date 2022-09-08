@@ -11,6 +11,7 @@ public class MyEntity : SimpleIndexTableEntity
         : base(partitionKey, rowKey)
     { }
     
-    
+    [SimpleIndex]
+    public string IndexedProperty { get; set; }
 }
 ```
