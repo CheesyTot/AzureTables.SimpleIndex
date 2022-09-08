@@ -5,14 +5,16 @@ This project provides a simple way to add indexing to your Azure Table Storage e
 ### Decorate properties to be indexed
 
 ```
-public class MyEntity : SimpleIndexTableEntity
+public class Cat : SimpleIndexTableEntity
 {
-    public MyEntity(string partitionKey, string rowKey)
+    public Cat(string partitionKey, string rowKey)
         : base(partitionKey, rowKey)
     { }
     
     [SimpleIndex]
-    public string IndexedProperty { get; set; }
+    public string Breed { get; set; }
+    
+    public string Name { get; set; }
 }
 ```
 ### Query by indexed properties
@@ -20,16 +22,16 @@ public class MyEntity : SimpleIndexTableEntity
 ```
 public class MyDataAccess
 {
-    private readonly ISimpleIndexRepository<MyEntity> _repo;
+    private readonly ISimpleIndexRepository<Cat> _catRepository;
 
-    public MyDataAccess(ISimpleIndexRepository<MyEntity> repo)
+    public MyDataAccess(ISimpleIndexRepository<Cat> catRepository)
     {
-        _repo = repo;
+        _catRepository = catRepository;
     }
     
-    public async Task<IEnumerable<MyEntity>> GetIndexedPropertyAsync(string val)
+    public async Task<IEnumerable<Cat>> GetCatsByBreed(string breed)
     {
-        return await _repo.GetByIndexedPropertyAsync("IndexedProperty", val);
+        return await _cat.GetByIndexedPropertyAsync("Breed", breed);
     }
 }
 ```
