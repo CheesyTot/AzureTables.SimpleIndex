@@ -8,7 +8,7 @@ using CheesyTot.AzureTables.SimpleIndex.Extensions;
 
 namespace CheesyTot.AzureTables.SimpleIndex.Indexing
 {
-    public class IndexData<T> where T : ITableEntity, new()
+    public class IndexData<T> : IIndexData<T> where T : ITableEntity, new()
     {
         private TableClient _tableClient;
 

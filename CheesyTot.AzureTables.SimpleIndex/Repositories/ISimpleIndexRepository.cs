@@ -1,4 +1,5 @@
 ﻿using Azure.Data.Tables;
+using CheesyTot.AzureTables.SimpleIndex.Indexing;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
@@ -18,5 +19,7 @@ namespace CheesyTot.AzureTables.SimpleIndex.Repositories
         Task<T> GetSingleOrDefaultByIndexedPropertyAsync(string propertyName, object propertyValue);
         Task<IEnumerable<T>> QueryAsync(string filter);
         Task UpdateAsync(T entity);
+        IndexKey GetIndexKey(string propertyName, object propertyValue);
+        Task<IEnumerable<T>> GetByIndexesAsync(IEnumerable<Index> indexes);
     }
 }
