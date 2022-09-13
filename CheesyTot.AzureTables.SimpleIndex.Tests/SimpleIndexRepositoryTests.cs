@@ -1,8 +1,5 @@
 using Azure;
 using Azure.Data.Tables;
-using CheesyTot.AzureTables.SimpleIndex.Attributes;
-using CheesyTot.AzureTables.SimpleIndex.Azure;
-using CheesyTot.AzureTables.SimpleIndex.Entities;
 using CheesyTot.AzureTables.SimpleIndex.Indexing;
 using CheesyTot.AzureTables.SimpleIndex.Repositories;
 using Moq;
@@ -13,14 +10,14 @@ namespace CheesyTot.AzureTables.SimpleIndex.Tests
     [TestClass]
     public class SimpleIndexRepositoryTests
     {
-        private Mock<ITableClient> _moqTableClient;
+        private Mock<TableClient> _moqTableClient;
         private Mock<IIndexData<TestEntity>> _moqIndexData;
         private ISimpleIndexRepository<TestEntity> _repository;
 
         [TestInitialize]
         public void TestInit()
         {
-            _moqTableClient = new Mock<ITableClient>();
+            _moqTableClient = new Mock<TableClient>();
             _moqIndexData = new Mock<IIndexData<TestEntity>>();
             _repository = new SimpleIndexRepository<TestEntity>(_moqTableClient.Object, _moqIndexData.Object);
         }

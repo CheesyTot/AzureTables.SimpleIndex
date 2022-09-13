@@ -4,7 +4,8 @@ using System.Collections.Generic;
 using System.Reflection;
 using System.Threading.Tasks;
 using CheesyTot.AzureTables.SimpleIndex.Repositories;
-using CheesyTot.AzureTables.SimpleIndex.Extensions;
+using Azure;
+using System.Threading;
 
 namespace CheesyTot.AzureTables.SimpleIndex.Indexing
 {
@@ -20,6 +21,11 @@ namespace CheesyTot.AzureTables.SimpleIndex.Indexing
             );
 
             _tableClient.CreateIfNotExists();
+        }
+
+        public IndexData(TableClient tableClient)
+        {
+            _tableClient = tableClient;
         }
 
         public async Task AddAsync(T entity, PropertyInfo propertyInfo)
@@ -49,7 +55,7 @@ namespace CheesyTot.AzureTables.SimpleIndex.Indexing
             var propertyValue = Convert.ToString(propertyInfo.GetValue(entity));
             var indexKey = new IndexKey(propertyInfo.Name, propertyValue);
 
-            await _tableClient.DeleteEntityAsync(indexKey.ToString(), EntityKey.FromEntity(entity).ToString());
+            await _tableClient.DeleteEntityAsync(indexKey.ToString(), EntityKey.FromEntity(entity).ToString(), ETag.All);
         }
 
         public async Task ReplaceAsync(T oldEntity, T newEntity, PropertyInfo propertyInfo)
@@ -66,7 +72,7 @@ namespace CheesyTot.AzureTables.SimpleIndex.Indexing
             // DELETE THE OLD INDEX
             var oldPropertyValue = Convert.ToString(propertyInfo.GetValue(oldEntity));
             var oldIndexKey = new IndexKey(propertyInfo.Name, oldPropertyValue);
-            await _tableClient.DeleteEntityAsync(oldIndexKey.ToString(), EntityKey.FromEntity(oldEntity).ToString());
+            await _tableClient.DeleteEntityAsync(oldIndexKey.ToString(), EntityKey.FromEntity(oldEntity).ToString(), ETag.All);
 
             // ADD THE NEW INDEX
             var newPropertyValue = Convert.ToString(propertyInfo.GetValue(newEntity));
@@ -82,22 +88,26 @@ namespace CheesyTot.AzureTables.SimpleIndex.Indexing
 
         public async Task<Index> GetFirstIndexAsync(IndexKey indexKey)
         {
-            return await _tableClient.QueryAsync<Index>($"PartitionKey eq '{indexKey}'").FirstAsync();
+            var partitionKey = $"PartitionKey eq '{indexKey}'";
+            var foo = _tableClient.QueryAsync<Indexing.Index>(partitionKey, default(int?), default(IEnumerable<string>), default(CancellationToken));
+            return await foo.FirstAsync();
         }
 
         public async Task<Index> GetFirstIndexOrDefaultAsync(IndexKey indexKey)
         {
-            return await _tableClient.QueryAsync<Index>($"PartitionKey eq '{indexKey}'").FirstOrDefaultAsync();
+            return await _tableClient.QueryAsync<Index>($"PartitionKey eq '{indexKey}'", default(int?), default(IEnumerable<string>), default(CancellationToken)).FirstOrDefaultAsync();
         }
 
         public async Task<Index> GetSingleIndexAsync(IndexKey indexKey)
         {
-            return await _tableClient.QueryAsync<Index>($"PartitionKey eq '{indexKey}'").SingleAsync();
+            return await _tableClient.QueryAsync<Index>($"PartitionKey eq '{indexKey}'", default(int?), default(IEnumerable<string>), default(CancellationToken)).SingleAsync();
         }
 
         public async Task<Index> GetSingleIndexOrDefaultAsync(IndexKey indexKey)
         {
-            return await _tableClient.QueryAsync<Index>($"PartitionKey eq '{indexKey}'").SingleOrDefaultAsync();
+            var partitionKey = $"PartitionKey eq '{indexKey}'";
+            var foo = _tableClient.QueryAsync<Index>(partitionKey, default(int?), default(IEnumerable<string>), default(CancellationToken));
+            return await foo.SingleOrDefaultAsync();
         }
     }
 }

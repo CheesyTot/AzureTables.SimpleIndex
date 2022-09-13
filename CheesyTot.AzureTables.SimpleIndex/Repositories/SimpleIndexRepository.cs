@@ -9,9 +9,6 @@ using System.Reflection;
 using System.Threading.Tasks;
 using CheesyTot.AzureTables.SimpleIndex.Attributes;
 using CheesyTot.AzureTables.SimpleIndex.Indexing;
-using CheesyTot.AzureTables.SimpleIndex.Extensions;
-using CheesyTot.AzureTables.SimpleIndex.Azure;
-using System.Threading;
 
 namespace CheesyTot.AzureTables.SimpleIndex.Repositories
 {
@@ -22,7 +19,7 @@ namespace CheesyTot.AzureTables.SimpleIndex.Repositories
 
         public SimpleIndexRepository(IOptionsMonitor<SimpleIndexRepositoryOptions> options)
         {
-            TableClient = new SimpleIndexTableClient(
+            TableClient = new TableClient(
                 options.CurrentValue.StorageConnectionString,
                 $"{options.CurrentValue.TablePrefix}{typeof(T).Name}");
 
@@ -38,14 +35,14 @@ namespace CheesyTot.AzureTables.SimpleIndex.Repositories
             .Where(x => Attribute.IsDefined(x, typeof(SimpleIndexAttribute)))
             .ToArray();
 
-        public SimpleIndexRepository(ITableClient tableClient, IIndexData<T> indexData, int chunkSize = DEFAULT_CHUNK_SIZE)
+        public SimpleIndexRepository(TableClient tableClient, IIndexData<T> indexData, int chunkSize = DEFAULT_CHUNK_SIZE)
         {
             TableClient = tableClient;
             IndexData = indexData;
             _chunkSize = chunkSize;
         }
 
-        protected ITableClient TableClient { get; }
+        protected TableClient TableClient { get; }
         protected IIndexData<T> IndexData { get; }
 
         public virtual async Task AddAsync(T entity)

@@ -5,11 +5,11 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 
-namespace CheesyTot.AzureTables.SimpleIndex.Extensions
+namespace CheesyTot.AzureTables.SimpleIndex
 {
-    internal static class InternalExtensions
+    public static class InternalExtensions
     {
-        internal static async Task<IEnumerable<T>> AsEnumerableAsync<T>(this AsyncPageable<T> asyncPageable) where T : class, ITableEntity, new()
+        public static async Task<IEnumerable<T>> AsEnumerableAsync<T>(this AsyncPageable<T> asyncPageable) where T : class, ITableEntity, new()
         {
             if (asyncPageable == null)
                 return Enumerable.Empty<T>();
@@ -32,9 +32,9 @@ namespace CheesyTot.AzureTables.SimpleIndex.Extensions
             return result;
         }
 
-        internal static async Task<T> FirstAsync<T>(this AsyncPageable<T> asyncPageable) where T : class, ITableEntity, new()
+        public static async Task<T> FirstAsync<T>(this AsyncPageable<T> asyncPageable) where T : class, ITableEntity, new()
         {
-            if(asyncPageable != null)
+            if (asyncPageable != null)
             {
                 var enumerator = asyncPageable.GetAsyncEnumerator();
 
@@ -54,9 +54,9 @@ namespace CheesyTot.AzureTables.SimpleIndex.Extensions
             throw new InvalidOperationException("The input sequence contains no elements.");
         }
 
-        internal static async Task<T> FirstOrDefaultAsync<T>(this AsyncPageable<T> asyncPageable) where T : class, ITableEntity, new()
+        public static async Task<T> FirstOrDefaultAsync<T>(this AsyncPageable<T> asyncPageable) where T : class, ITableEntity, new()
         {
-            if(asyncPageable != null)
+            if (asyncPageable != null)
             {
                 var enumerator = asyncPageable.GetAsyncEnumerator();
 
@@ -76,7 +76,7 @@ namespace CheesyTot.AzureTables.SimpleIndex.Extensions
             return default;
         }
 
-        internal static async Task<T> SingleOrDefaultAsync<T>(this AsyncPageable<T> asyncPageable) where T : class, ITableEntity, new()
+        public static async Task<T> SingleOrDefaultAsync<T>(this AsyncPageable<T> asyncPageable) where T : class, ITableEntity, new()
         {
             T result = default;
 
@@ -103,9 +103,9 @@ namespace CheesyTot.AzureTables.SimpleIndex.Extensions
             return result;
         }
 
-        internal static async Task<T> SingleAsync<T>(this AsyncPageable<T> asyncPageable) where T : class, ITableEntity, new()
+        public static async Task<T> SingleAsync<T>(this AsyncPageable<T> asyncPageable) where T : class, ITableEntity, new()
         {
-            if(asyncPageable != null)
+            if (asyncPageable != null)
             {
                 var enumerator = asyncPageable.GetAsyncEnumerator();
                 T result = default;
@@ -132,11 +132,11 @@ namespace CheesyTot.AzureTables.SimpleIndex.Extensions
             throw new InvalidOperationException("The input sequence contains no elements.");
         }
 
-        internal static async Task<int> Count<T>(this AsyncPageable<T> asyncPageable) where T : class, ITableEntity, new()
+        public static async Task<int> CountAsync<T>(this AsyncPageable<T> asyncPageable) where T : class, ITableEntity, new()
         {
             var count = 0;
 
-            if(asyncPageable != null)
+            if (asyncPageable != null)
             {
                 var enumerator = asyncPageable.GetAsyncEnumerator();
 
@@ -156,11 +156,11 @@ namespace CheesyTot.AzureTables.SimpleIndex.Extensions
             return count;
         }
 
-        internal static async Task<long> LongCount<T>(this AsyncPageable<T> asyncPageable) where T : class, ITableEntity, new()
+        public static async Task<long> LongCountAsync<T>(this AsyncPageable<T> asyncPageable) where T : class, ITableEntity, new()
         {
             var count = 0L;
 
-            if(asyncPageable != null)
+            if (asyncPageable != null)
             {
                 var enumerator = asyncPageable.GetAsyncEnumerator();
 
@@ -180,10 +180,10 @@ namespace CheesyTot.AzureTables.SimpleIndex.Extensions
             return count;
         }
 
-        internal static async Task<bool> Any<T>(this AsyncPageable<T> asyncPageable) where T : class, ITableEntity, new()
+        public static async Task<bool> AnyAsync<T>(this AsyncPageable<T> asyncPageable) where T : class, ITableEntity, new()
         {
             if (asyncPageable == null)
-                return false; 
+                return false;
 
             var enumerator = asyncPageable.GetAsyncEnumerator();
 
@@ -202,10 +202,13 @@ namespace CheesyTot.AzureTables.SimpleIndex.Extensions
             return false;
         }
 
-        internal static IEnumerable<IEnumerable<T>> InChunksOf<T>(this IEnumerable<T> input, int chunkSize)
+        public static IEnumerable<IEnumerable<T>> InChunksOf<T>(this IEnumerable<T> input, int chunkSize)
         {
-            if (input == null)
-                return Enumerable.Empty<IEnumerable<T>>();
+            if (chunkSize == input.Count())
+                return new[]
+                {
+                    input
+                };
 
             return input.Select((x, i) => new { Index = i, Value = x })
                 .Where(x => x.Value != null)
