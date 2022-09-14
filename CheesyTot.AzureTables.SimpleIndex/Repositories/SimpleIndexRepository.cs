@@ -9,6 +9,7 @@ using System.Reflection;
 using System.Threading.Tasks;
 using CheesyTot.AzureTables.SimpleIndex.Attributes;
 using CheesyTot.AzureTables.SimpleIndex.Indexing;
+using System.Threading;
 
 namespace CheesyTot.AzureTables.SimpleIndex.Repositories
 {
@@ -77,7 +78,7 @@ namespace CheesyTot.AzureTables.SimpleIndex.Repositories
         {
             try
             {
-                var response = await TableClient.GetEntityAsync<T>(partitionKey, rowKey);
+                var response = await TableClient.GetEntityAsync<T>(partitionKey, rowKey, default(IEnumerable<string>), default(CancellationToken));
                 if (response != null)
                     return response.Value;
             }
@@ -144,7 +145,7 @@ namespace CheesyTot.AzureTables.SimpleIndex.Repositories
 
         public virtual async Task<IEnumerable<T>> QueryAsync(string filter)
         {
-            return await TableClient.QueryAsync<T>(filter).AsEnumerableAsync();
+            return await TableClient.QueryAsync<T>(filter, default(int?), default(IEnumerable<string>), CancellationToken.None).AsEnumerableAsync();
         }
 
         public virtual async Task UpdateAsync(T entity)
@@ -160,7 +161,7 @@ namespace CheesyTot.AzureTables.SimpleIndex.Repositories
                 if (propertyInfo.GetValue(existing) != propertyInfo.GetValue(entity))
                     await IndexData.ReplaceAsync(existing, entity, propertyInfo);
 
-            await TableClient.UpdateEntityAsync(entity, ETag.All, TableUpdateMode.Replace);
+            await TableClient.UpdateEntityAsync(entity, ETag.All, TableUpdateMode.Replace, CancellationToken.None);
         }
 
         public IndexKey GetIndexKey(string propertyName, object propertyValue)

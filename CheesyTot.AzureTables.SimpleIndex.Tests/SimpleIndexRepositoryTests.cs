@@ -10,14 +10,39 @@ namespace CheesyTot.AzureTables.SimpleIndex.Tests
     [TestClass]
     public class SimpleIndexRepositoryTests
     {
+        private static IDictionary<string, TestEntity> _entities = new Dictionary<string, TestEntity>
+        {
+            { "GetAsync1", new TestEntity("f793bd89-b42a-459d-8cab-35a790165cab", "81595778-ed0d-40e6-be1d-d08fccd814dd"){ IndexedProperty1 = "ABC123", IndexedProperty2 = "BCD234", NormalProperty = "CDE345" } },
+            { "UpdateAsync1", new TestEntity("f793bd89-b42a-459d-8cab-35a790165cab", "81595778-ed0d-40e6-be1d-d08fccd814dd"){ IndexedProperty1 = "DEF456", IndexedProperty2 = "EFG567", NormalProperty = "FGH678" } },
+            { "GetByIndexes1", new TestEntity("b83631c8-ee30-474f-9764-c1318f86815d", "6a048ae7-bb79-415f-86af-b35088156945"){ IndexedProperty1 = "GHI789", IndexedProperty2 = "HIJ890", NormalProperty = "IJK901" } },
+            { "GetByIndexes2", new TestEntity("d8f7ad66-a764-4421-b88f-acf2c526a76e", "951a9012-70ff-48e6-a26a-0d6566221925"){ IndexedProperty1 = "GHI789", IndexedProperty2 = "NOP456", NormalProperty = "OPQ567" } },
+            { "GetByIndexes3", new TestEntity("238f49fd-2016-4195-84a9-aa4b1c31813d", "3eb415c6-5183-4170-8374-33888de1b62a"){ IndexedProperty1 = "JKL012", IndexedProperty2 = "KLM123", NormalProperty = "LMN234" } }
+        };
+
+        private static IDictionary<string, Indexing.Index> _indexes = new Dictionary<string, Indexing.Index>
+        {
+            { "GetByIndexes1", new Indexing.Index(new IndexKey(nameof(TestEntity.IndexedProperty1), _entities["GetByIndexes1"].IndexedProperty1), EntityKey.FromEntity(_entities["GetByIndexes1"])) },
+            { "GetByIndexes2", new Indexing.Index(new IndexKey(nameof(TestEntity.IndexedProperty1), _entities["GetByIndexes2"].IndexedProperty1), EntityKey.FromEntity(_entities["GetByIndexes2"])) },
+            { "GetByIndexes3", new Indexing.Index(new IndexKey(nameof(TestEntity.IndexedProperty1), _entities["GetByIndexes3"].IndexedProperty1), EntityKey.FromEntity(_entities["GetByIndexes3"])) },
+        };
+
+        private ISimpleIndexRepository<TestEntity> _repository;
+
         private Mock<TableClient> _moqTableClient;
         private Mock<IIndexData<TestEntity>> _moqIndexData;
-        private ISimpleIndexRepository<TestEntity> _repository;
+
+        private Azure.Response<TestEntity> getResponse(TestEntity entity)
+        {
+            return Azure.Response.FromValue(entity, default);
+        }
 
         [TestInitialize]
         public void TestInit()
         {
             _moqTableClient = new Mock<TableClient>();
+            _moqTableClient.Setup(x => x.GetEntityAsync<TestEntity>(_entities["GetAsync1"].PartitionKey, _entities["GetAsync1"].RowKey, default(IEnumerable<string>), default(CancellationToken))).Returns(Task.FromResult(getResponse(_entities["GetAsync1"])));
+
+
             _moqIndexData = new Mock<IIndexData<TestEntity>>();
             _repository = new SimpleIndexRepository<TestEntity>(_moqTableClient.Object, _moqIndexData.Object);
         }
@@ -103,10 +128,8 @@ namespace CheesyTot.AzureTables.SimpleIndex.Tests
         [TestMethod("GetAsync(partitionKey, rowKey) calls TableClient.GetEntityAsync<T>(partitionKey, rowKey)")]
         public async Task GetAsyncPartitionKeyRowKey_CallsTableClientGetEntityAsyncPartitionKeyRowKey()
         {
-            var partitionKey = Guid.NewGuid().ToString();
-            var rowKey = Guid.NewGuid().ToString();
-            await _repository.GetAsync(partitionKey, rowKey);
-            _moqTableClient.Verify(x => x.GetEntityAsync<TestEntity>(partitionKey, rowKey, null, CancellationToken.None), Times.Once);
+            await _repository.GetAsync(_entities["GetAsync1"].PartitionKey, _entities["GetAsync1"].RowKey);
+            _moqTableClient.Verify(x => x.GetEntityAsync<TestEntity>(_entities["GetAsync1"].PartitionKey, _entities["GetAsync1"].RowKey, default(IEnumerable<string>), default(CancellationToken)), Times.Once);
         }
 
         [TestMethod("GetIndexKey throws ArgumentNullException if propertyName is null")]
@@ -169,24 +192,57 @@ namespace CheesyTot.AzureTables.SimpleIndex.Tests
         [TestMethod]
         public async Task GetByIndexesAsync_CallsTableClientGetEntityAsyncForEachIndex()
         {
-            var entities = new List<TestEntity>
-            {
-                new TestEntity("partitionkey1", "rowkey1") { IndexedProperty1 = "indexedproperty1_1", IndexedProperty2 = "indexedproperty2_1", NormalProperty = "normalproperty1" },
-                new TestEntity("partitionkey2", "rowkey2") { IndexedProperty1 = "indexedproperty1_2", IndexedProperty2 = "indexedproperty2_2", NormalProperty = "normalproperty2" },
-                new TestEntity("partitionkey3", "rowkey3") { IndexedProperty1 = "indexedproperty1_3", IndexedProperty2 = "indexedproperty2_3", NormalProperty = "normalproperty3" }
-            };
-
-            var indexes = entities.Select(x => new Indexing.Index(new IndexKey(nameof(TestEntity.IndexedProperty1), x.IndexedProperty1), EntityKey.FromEntity(x))).ToArray();
+            var indexes = new[] { _indexes["GetByIndexes1"], _indexes["GetByIndexes2"], _indexes["GetByIndexes3"] };
 
             await _repository.GetByIndexesAsync(indexes);
 
-            _moqTableClient.Verify(x => x.GetEntityAsync<TestEntity>(It.IsAny<string>(), It.IsAny<string>(), null, CancellationToken.None), Times.Exactly(3));
+            _moqTableClient.Verify(x => x.GetEntityAsync<TestEntity>(indexes[0].EntityKey.PartitionKey, indexes[0].EntityKey.RowKey, null, CancellationToken.None), Times.Once);
+            _moqTableClient.Verify(x => x.GetEntityAsync<TestEntity>(indexes[1].EntityKey.PartitionKey, indexes[1].EntityKey.RowKey, null, CancellationToken.None), Times.Once);
+            _moqTableClient.Verify(x => x.GetEntityAsync<TestEntity>(indexes[2].EntityKey.PartitionKey, indexes[2].EntityKey.RowKey, null, CancellationToken.None), Times.Once);
         }
 
+        [TestMethod("UpdateAsync: Throws if entity is null")]
+        [ExpectedException(typeof(ArgumentNullException))]
+        public async Task UpdateAsync_ThrowsIfEntityIsNull()
+        {
+            await _repository.UpdateAsync(null);
+        }
 
+        [TestMethod("UpdateAsync: Calls TableClient.GetEntityAsync")]
+        public async Task UpdateAsync_CallsTableClientGetEntityAsync()
+        {
+            var entity = _entities["UpdateAsync1"];
+            await _repository.UpdateAsync(entity);
+            _moqTableClient.Verify(x => x.GetEntityAsync<TestEntity>(entity.PartitionKey, entity.RowKey, default(IEnumerable<string>), default(CancellationToken)), Times.Once);
+        }
 
+        [TestMethod("UpdateAsync: Calls IndexData.ReplaceAsync for each indexed property")]
+        public async Task UpdateAsync_CallsIndexDataReplaceAsyncForEachIndexedProperty()
+        {
+            var oldEntity = _entities["GetAsync1"];
+            var newEntity = _entities["UpdateAsync1"];
+            var pi_indexedProperty1 = typeof(TestEntity).GetProperty("IndexedProperty1");
+            var pi_indexedProperty2 = typeof(TestEntity).GetProperty("IndexedProperty2");
+            await _repository.UpdateAsync(newEntity);
+            _moqIndexData.Verify(x => x.ReplaceAsync(oldEntity, newEntity, pi_indexedProperty1), Times.Once);
+            _moqIndexData.Verify(x => x.ReplaceAsync(oldEntity, newEntity, pi_indexedProperty2), Times.Once);
+        }
 
+        [TestMethod("UpdateAsync: Calls TableClient.UpdateEntityAsync")]
+        public async Task UpdateAsync_CallsTableClientUpdateEntityAsync()
+        {
+            var entity = _entities["UpdateAsync1"];
+            await _repository.UpdateAsync(entity);
+            _moqTableClient.Verify(x => x.UpdateEntityAsync(entity, ETag.All, TableUpdateMode.Replace, CancellationToken.None), Times.Once);
+        }
 
+        [TestMethod("QueryAsync: Calls TableClient.QueryAsync")]
+        public async Task QueryAsync_CallsTableClientQueryAsync()
+        {
+            string filter = $"PartitionKey = '{_entities["GetAsync1"].PartitionKey}'";
+            await _repository.QueryAsync(filter);
+            _moqTableClient.Verify(x => x.QueryAsync<TestEntity>(filter, default(int?), default(IEnumerable<string>), CancellationToken.None), Times.Once);
+        }
 
 
 
