@@ -31,5 +31,13 @@ namespace CheesyTot.AzureTables.SimpleIndex.Indexing
 
             return new EntityKey(parts[0], parts[1]);
         }
+
+        public override bool Equals(object obj)
+        {
+            if (obj == null)
+                return false;
+
+            return string.Equals(ToString(), obj.ToString());
+        }
     }
 }

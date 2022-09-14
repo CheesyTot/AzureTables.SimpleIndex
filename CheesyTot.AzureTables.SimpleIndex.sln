@@ -5,6 +5,8 @@ VisualStudioVersion = 17.2.32519.379
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "CheesyTot.AzureTables.SimpleIndex", "CheesyTot.AzureTables.SimpleIndex\CheesyTot.AzureTables.SimpleIndex.csproj", "{FBA60883-29C6-4DC1-A0D7-152E6FCBE27D}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CheesyTot.AzureTables.SimpleIndex.Tests", "CheesyTot.AzureTables.SimpleIndex.Tests\CheesyTot.AzureTables.SimpleIndex.Tests.csproj", "{A355AA7B-0939-41D5-B81D-CB52E77CA007}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -15,6 +17,10 @@ Global
 		{FBA60883-29C6-4DC1-A0D7-152E6FCBE27D}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{FBA60883-29C6-4DC1-A0D7-152E6FCBE27D}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{FBA60883-29C6-4DC1-A0D7-152E6FCBE27D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A355AA7B-0939-41D5-B81D-CB52E77CA007}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A355AA7B-0939-41D5-B81D-CB52E77CA007}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A355AA7B-0939-41D5-B81D-CB52E77CA007}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A355AA7B-0939-41D5-B81D-CB52E77CA007}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
