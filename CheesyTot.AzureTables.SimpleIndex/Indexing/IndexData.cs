@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using CheesyTot.AzureTables.SimpleIndex.Repositories;
 using Azure;
 using System.Threading;
+using System.Linq;
 
 namespace CheesyTot.AzureTables.SimpleIndex.Indexing
 {
@@ -100,7 +101,11 @@ namespace CheesyTot.AzureTables.SimpleIndex.Indexing
 
         public async Task<Index> GetSingleIndexAsync(IndexKey indexKey)
         {
-            return await _tableClient.QueryAsync<Index>($"PartitionKey eq '{indexKey}'", default(int?), default(IEnumerable<string>), default(CancellationToken)).SingleAsync();
+            var result = _tableClient.QueryAsync<Index>($"PartitionKey eq '{indexKey}'", default(int?), default(IEnumerable<string>), default(CancellationToken));
+            var qq = await result.AsEnumerableAsync();
+            return qq.Single();
+            
+            //return await result.SingleAsync();
         }
 
         public async Task<Index> GetSingleIndexOrDefaultAsync(IndexKey indexKey)

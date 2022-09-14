@@ -1,4 +1,8 @@
-﻿using System;
+﻿using Azure.Data.Tables;
+using CheesyTot.AzureTables.SimpleIndex.Attributes;
+using System;
+using System.Linq;
+using System.Reflection;
 using System.Text.RegularExpressions;
 
 namespace CheesyTot.AzureTables.SimpleIndex.Indexing
@@ -45,6 +49,29 @@ namespace CheesyTot.AzureTables.SimpleIndex.Indexing
                 return false;
 
             return string.Equals(ToString(), obj.ToString());
+        }
+
+        public static IndexKey GetIndexKey<T>(string propertyName, object propertyValue) where T : class, ITableEntity, new()
+        {
+            if (string.IsNullOrWhiteSpace(propertyName))
+                throw new ArgumentNullException(nameof(propertyName));
+
+            if(!GetIndexedPropertyInfos<T>().Any(x => x.Name == propertyName))
+                throw new ArgumentOutOfRangeException($"Entity of Type {nameof(T)} does not have indexed property {propertyName} with PartitionKey");
+
+            var strPropertyValue = propertyValue == null
+                ? string.Empty
+                : Convert.ToString(propertyValue);
+
+            return new IndexKey(propertyName, strPropertyValue);
+        }
+
+        public static PropertyInfo[] GetIndexedPropertyInfos<T>() where T: class, ITableEntity, new()
+        {
+            return typeof(T)
+                .GetProperties(BindingFlags.Public | BindingFlags.Instance)
+                .Where(x => Attribute.IsDefined(x, typeof(SimpleIndexAttribute)))
+                .ToArray();
         }
     }
 }

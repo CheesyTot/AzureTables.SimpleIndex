@@ -31,11 +31,6 @@ namespace CheesyTot.AzureTables.SimpleIndex.Repositories
             _chunkSize = options.CurrentValue.ChunkSize;
         }
 
-        protected PropertyInfo[] IndexedPropertyInfos => typeof(T)
-            .GetProperties(BindingFlags.Public | BindingFlags.Instance)
-            .Where(x => Attribute.IsDefined(x, typeof(SimpleIndexAttribute)))
-            .ToArray();
-
         public SimpleIndexRepository(TableClient tableClient, IIndexData<T> indexData, int chunkSize = DEFAULT_CHUNK_SIZE)
         {
             TableClient = tableClient;
@@ -51,7 +46,7 @@ namespace CheesyTot.AzureTables.SimpleIndex.Repositories
             if (entity == null)
                 throw new ArgumentNullException(nameof(entity));
 
-            foreach (var propertyInfo in IndexedPropertyInfos)
+            foreach (var propertyInfo in IndexKey.GetIndexedPropertyInfos<T>())
                 await IndexData.AddAsync(entity, propertyInfo);
 
             await TableClient.AddEntityAsync(entity);
@@ -62,7 +57,7 @@ namespace CheesyTot.AzureTables.SimpleIndex.Repositories
             if (entity == null)
                 throw new ArgumentNullException(nameof(entity));
 
-            foreach (var propertyInfo in IndexedPropertyInfos)
+            foreach (var propertyInfo in IndexKey.GetIndexedPropertyInfos<T>())
                 await IndexData.DeleteAsync(entity, propertyInfo);
 
             await TableClient.DeleteEntityAsync(entity.PartitionKey, entity.RowKey, ETag.All);
@@ -90,29 +85,25 @@ namespace CheesyTot.AzureTables.SimpleIndex.Repositories
 
         public virtual async Task<IEnumerable<T>> GetByIndexedPropertyAsync(string propertyName, object propertyValue)
         {
-            var indexKey = GetIndexKey(propertyName, propertyValue);
+            var indexKey = IndexKey.GetIndexKey<T>(propertyName, propertyValue);
 
             var indexes = await IndexData.GetAllIndexesAsync(indexKey);
             if (indexes == null || !indexes.Any())
-                return null;
+                return Enumerable.Empty<T>();
 
             return await GetByIndexesAsync(indexes);
         }
 
         public virtual async Task<T> GetSingleByIndexedPropertyAsync(string propertyName, object propertyValue)
         {
-            var indexKey = GetIndexKey(propertyName, propertyValue);
-
+            var indexKey = IndexKey.GetIndexKey<T>(propertyName, propertyValue);
             var index = await IndexData.GetSingleIndexAsync(indexKey);
-            if (index == null)
-                return null;
-
             return await GetAsync(index.EntityKey.PartitionKey, index.EntityKey.RowKey);
         }
 
         public virtual async Task<T> GetSingleOrDefaultByIndexedPropertyAsync(string propertyName, object propertyValue)
         {
-            var indexKey = GetIndexKey(propertyName, propertyValue);
+            var indexKey = IndexKey.GetIndexKey<T>(propertyName, propertyValue);
 
             var index = await IndexData.GetSingleIndexOrDefaultAsync(indexKey);
             if (index == null)
@@ -123,7 +114,7 @@ namespace CheesyTot.AzureTables.SimpleIndex.Repositories
 
         public virtual async Task<T> GetFirstByIndexedPropertyAsync(string propertyName, object propertyValue)
         {
-            var indexKey = GetIndexKey(propertyName, propertyValue);
+            var indexKey = IndexKey.GetIndexKey<T>(propertyName, propertyValue);
 
             var index = await IndexData.GetFirstIndexAsync(indexKey);
             if (index == null)
@@ -134,7 +125,7 @@ namespace CheesyTot.AzureTables.SimpleIndex.Repositories
 
         public virtual async Task<T> GetFirstOrDefaultByIndexedPropertyAsync(string propertyName, object propertyValue)
         {
-            var indexKey = GetIndexKey(propertyName, propertyValue);
+            var indexKey = IndexKey.GetIndexKey<T>(propertyName, propertyValue);
 
             var index = await IndexData.GetFirstIndexOrDefaultAsync(indexKey);
             if (index == null)
@@ -157,26 +148,11 @@ namespace CheesyTot.AzureTables.SimpleIndex.Repositories
             if (existing == null)
                 throw new ArgumentOutOfRangeException($"Entity of Type {nameof(T)} with PartitionKey {entity.PartitionKey} and RowKey {entity.RowKey} does not exist.", nameof(entity));
 
-            foreach (var propertyInfo in IndexedPropertyInfos)
+            foreach (var propertyInfo in IndexKey.GetIndexedPropertyInfos<T>())
                 if (propertyInfo.GetValue(existing) != propertyInfo.GetValue(entity))
                     await IndexData.ReplaceAsync(existing, entity, propertyInfo);
 
             await TableClient.UpdateEntityAsync(entity, ETag.All, TableUpdateMode.Replace, CancellationToken.None);
-        }
-
-        public IndexKey GetIndexKey(string propertyName, object propertyValue)
-        {
-            if (string.IsNullOrWhiteSpace(propertyName))
-                throw new ArgumentNullException(nameof(propertyName));
-
-            if (!IndexedPropertyInfos.Select(x => x.Name).Contains(propertyName))
-                throw new ArgumentOutOfRangeException($"{propertyName} is not an indexed property of {typeof(T).Name}");
-
-            var strPropertyValue = propertyValue == null
-                ? string.Empty
-                : Convert.ToString(propertyValue);
-
-            return new IndexKey(propertyName, strPropertyValue);
         }
 
         public async Task<IEnumerable<T>> GetByIndexesAsync(IEnumerable<Index> indexes)

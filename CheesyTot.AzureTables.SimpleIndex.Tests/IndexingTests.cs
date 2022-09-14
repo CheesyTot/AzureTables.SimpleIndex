@@ -98,6 +98,48 @@ namespace CheesyTot.AzureTables.SimpleIndex.Tests
             Assert.AreEqual(_sanitizedIndexValue, indexKey.PropertyValue);
         }
 
+        [TestMethod("IndexKey: GetIndexKey Throws ArgumentNullException if propertyName is null")]
+        [ExpectedException(typeof(ArgumentNullException))]
+        public void GetIndexKey_ThrowsArgumentNullExceptionIfPropertyNameIsNull()
+        {
+            IndexKey.GetIndexKey<TestEntity>(null, It.IsAny<object>());
+        }
+
+        [TestMethod("IndexKey: GetIndexKey Throws ArgumentNullException if propertyName is empty")]
+        [ExpectedException(typeof(ArgumentNullException))]
+        public void GetIndexKey_ThrowsArgumentNullExceptionIfPropertyNameIsEmpty()
+        {
+            IndexKey.GetIndexKey<TestEntity>(string.Empty, It.IsAny<object>());
+        }
+
+        [TestMethod("IndexKey: GetIndexKey Throws ArgumentNullException if propertyName is all white space")]
+        [ExpectedException(typeof(ArgumentNullException))]
+        public void GetIndexKey_ThrowsArgumentNullExceptionIfPropertyNameIsAllWhiteSpace()
+        {
+            IndexKey.GetIndexKey<TestEntity>("     ", It.IsAny<object>());
+        }
+
+        [TestMethod("IndexKey: GetIndexKey Throws ArgumentOutOfRangeException if propertyName does not correspond to an indexed property")]
+        [ExpectedException(typeof(ArgumentOutOfRangeException))]
+        public void GetIndexKey_ThrowsArgumentOutOfRangeExceptionIfPropertyNameDoesNotCorrespondToAnIndexedProperty()
+        {
+            IndexKey.GetIndexKey<TestEntity>(nameof(TestEntity.NormalProperty), It.IsAny<object>());
+        }
+
+        [TestMethod("IndexKey: GetIndexKey Returns excpected IndexKey for valid propertyName and not-null propertyValue")]
+        public void GetIndexKey_ReturnsExpectedIndexKeyForValidPropertyNameAndNotNullPropertyValue()
+        {
+            var indexKey = IndexKey.GetIndexKey<TestEntity>(nameof(TestEntity.IndexedProperty1), _sanitizedIndexValue);
+            Assert.IsTrue(indexKey.PropertyName == nameof(TestEntity.IndexedProperty1) && indexKey.PropertyValue == _sanitizedIndexValue);
+        }
+
+        [TestMethod("IndexKey: GetIndexKey Returns excpected IndexKey for valid propertyName and null propertyValue")]
+        public void GetIndexKey_ReturnsExpectedIndexKeyForValidPropertyNameAndNullPropertyValue()
+        {
+            var indexKey = IndexKey.GetIndexKey<TestEntity>(nameof(TestEntity.IndexedProperty1), null);
+            Assert.IsTrue(indexKey.PropertyName == nameof(TestEntity.IndexedProperty1) && indexKey.PropertyValue == string.Empty);
+        }
+
         [TestMethod("EntityKey: FromEntity is correct")]
         public void EntityKey_FromEntityIsCorrect()
         {

@@ -16,7 +16,8 @@ namespace CheesyTot.AzureTables.SimpleIndex.Tests
             { "UpdateAsync1", new TestEntity("f793bd89-b42a-459d-8cab-35a790165cab", "81595778-ed0d-40e6-be1d-d08fccd814dd"){ IndexedProperty1 = "DEF456", IndexedProperty2 = "EFG567", NormalProperty = "FGH678" } },
             { "GetByIndexes1", new TestEntity("b83631c8-ee30-474f-9764-c1318f86815d", "6a048ae7-bb79-415f-86af-b35088156945"){ IndexedProperty1 = "GHI789", IndexedProperty2 = "HIJ890", NormalProperty = "IJK901" } },
             { "GetByIndexes2", new TestEntity("d8f7ad66-a764-4421-b88f-acf2c526a76e", "951a9012-70ff-48e6-a26a-0d6566221925"){ IndexedProperty1 = "GHI789", IndexedProperty2 = "NOP456", NormalProperty = "OPQ567" } },
-            { "GetByIndexes3", new TestEntity("238f49fd-2016-4195-84a9-aa4b1c31813d", "3eb415c6-5183-4170-8374-33888de1b62a"){ IndexedProperty1 = "JKL012", IndexedProperty2 = "KLM123", NormalProperty = "LMN234" } }
+            { "GetByIndexes3", new TestEntity("238f49fd-2016-4195-84a9-aa4b1c31813d", "3eb415c6-5183-4170-8374-33888de1b62a"){ IndexedProperty1 = "JKL012", IndexedProperty2 = "KLM123", NormalProperty = "LMN234" } },
+            { "GetSingleByIndexedPropertyAsync", new TestEntity("238f49fd-2016-4195-84a9-aa4b1c31813d", "3eb415c6-5183-4170-8374-33888de1b62a"){ IndexedProperty1 = "MNO345", IndexedProperty2 = "NOP456", NormalProperty = "OPQ567" } }
         };
 
         private static IDictionary<string, Indexing.Index> _indexes = new Dictionary<string, Indexing.Index>
@@ -24,6 +25,7 @@ namespace CheesyTot.AzureTables.SimpleIndex.Tests
             { "GetByIndexes1", new Indexing.Index(new IndexKey(nameof(TestEntity.IndexedProperty1), _entities["GetByIndexes1"].IndexedProperty1), EntityKey.FromEntity(_entities["GetByIndexes1"])) },
             { "GetByIndexes2", new Indexing.Index(new IndexKey(nameof(TestEntity.IndexedProperty1), _entities["GetByIndexes2"].IndexedProperty1), EntityKey.FromEntity(_entities["GetByIndexes2"])) },
             { "GetByIndexes3", new Indexing.Index(new IndexKey(nameof(TestEntity.IndexedProperty1), _entities["GetByIndexes3"].IndexedProperty1), EntityKey.FromEntity(_entities["GetByIndexes3"])) },
+            { "GetSingleByIndexedPropertyAsync", new Indexing.Index(new IndexKey(nameof(TestEntity.IndexedProperty1), _entities["GetSingleByIndexedPropertyAsync"].IndexedProperty1), EntityKey.FromEntity(_entities["GetSingleByIndexedPropertyAsync"])) }
         };
 
         private ISimpleIndexRepository<TestEntity> _repository;
@@ -42,19 +44,24 @@ namespace CheesyTot.AzureTables.SimpleIndex.Tests
             _moqTableClient = new Mock<TableClient>();
             _moqTableClient.Setup(x => x.GetEntityAsync<TestEntity>(_entities["GetAsync1"].PartitionKey, _entities["GetAsync1"].RowKey, default(IEnumerable<string>), default(CancellationToken))).Returns(Task.FromResult(getResponse(_entities["GetAsync1"])));
 
-
             _moqIndexData = new Mock<IIndexData<TestEntity>>();
+            _moqIndexData.Setup(x => x.GetAllIndexesAsync(new IndexKey(nameof(TestEntity.IndexedProperty1), "GHI789"))).Returns(Task.FromResult(new[] { _indexes["GetByIndexes1"], _indexes["GetByIndexes2"] }.AsEnumerable()));
+            _moqIndexData.Setup(x => x.GetSingleIndexAsync(new IndexKey(nameof(TestEntity.IndexedProperty1), _entities["GetSingleByIndexedPropertyAsync"].IndexedProperty1))).Returns(Task.FromResult(_indexes["GetSingleByIndexedPropertyAsync"]));
+            _moqIndexData.Setup(x => x.GetSingleIndexAsync(new IndexKey(nameof(TestEntity.IndexedProperty1), "NotFoundValue"))).Throws<InvalidOperationException>();
+            _moqIndexData.Setup(x => x.GetFirstIndexAsync(new IndexKey(nameof(TestEntity.IndexedProperty1), "NotFoundValue"))).Throws<InvalidOperationException>();
+            _moqIndexData.Setup(x => x.GetSingleIndexOrDefaultAsync(new IndexKey(nameof(TestEntity.IndexedProperty1), _entities["GetSingleByIndexedPropertyAsync"].IndexedProperty1))).Returns(Task.FromResult(_indexes["GetSingleByIndexedPropertyAsync"]));
+
             _repository = new SimpleIndexRepository<TestEntity>(_moqTableClient.Object, _moqIndexData.Object);
         }
 
-        [TestMethod("AddAsync throws ArgumentNullException if entity argument is null")]
+        [TestMethod("AddAsync: Throws ArgumentNullException if entity argument is null")]
         [ExpectedException(typeof(ArgumentNullException))]
         public async Task AddAsync_ThrowsArgumentNullExceptionIfEntityIsNull()
         {
             await _repository.AddAsync(null);
         }
 
-        [TestMethod("AddAsync calls IndexData.AddAsync for each indexed property")]
+        [TestMethod("AddAsync: Calls IndexData.AddAsync for each indexed property")]
         public async Task AddAsync_CallsIndexDataAddAsyncForEachIndexedProperty()
         {
             var entity = getTestEntity();
@@ -62,7 +69,7 @@ namespace CheesyTot.AzureTables.SimpleIndex.Tests
             _moqIndexData.Verify(x => x.AddAsync(entity, It.IsAny<PropertyInfo>()), Times.Exactly(2));
         }
 
-        [TestMethod("AddAsync does not call IndexData.AddAsync for normal properties")]
+        [TestMethod("AddAsync: Does not call IndexData.AddAsync for normal properties")]
         public async Task AddAsync_DoesNotCallIndexDataAddAsyncForNormalProperties()
         {
             var entity = getTestEntity();
@@ -70,7 +77,7 @@ namespace CheesyTot.AzureTables.SimpleIndex.Tests
             _moqIndexData.Verify(x => x.AddAsync(entity, getPropertyInfo(nameof(TestEntity.NormalProperty))), Times.Never);
         }
 
-        [TestMethod("Addsync calls TableClient.AddEntityAsync")]
+        [TestMethod("Addsync: Calls TableClient.AddEntityAsync")]
         public async Task AddAsync_CallsTableClientAddEntityAsync()
         {
             var entity = getTestEntity();
@@ -78,14 +85,14 @@ namespace CheesyTot.AzureTables.SimpleIndex.Tests
             _moqTableClient.Verify(x => x.AddEntityAsync(entity, CancellationToken.None), Times.Once);
         }
 
-        [TestMethod("DeleteAsync throws ArgumentNullException if entity argument is null")]
+        [TestMethod("DeleteAsync: Throws ArgumentNullException if entity argument is null")]
         [ExpectedException(typeof(ArgumentNullException))]
         public async Task DeleteAsync_ThrowsArgumentNullExceptionIfEntityIsNull()
         {
             await _repository.DeleteAsync(null);
         }
 
-        [TestMethod("DeleteAsync calls IndexData.DeleteAsync for each indexed property")]
+        [TestMethod("DeleteAsync: Calls IndexData.DeleteAsync for each indexed property")]
         public async Task DeleteAsync_CallsIndexDataDeleteAsyncForEachIndexedProperty()
         {
             var entity = getTestEntity();
@@ -93,7 +100,7 @@ namespace CheesyTot.AzureTables.SimpleIndex.Tests
             _moqIndexData.Verify(x => x.DeleteAsync(entity, It.IsAny<PropertyInfo>()), Times.Exactly(2));
         }
 
-        [TestMethod("DeleteAsync does not call IndexData.DeleteAsync for normal properties")]
+        [TestMethod("DeleteAsync: Does not call IndexData.DeleteAsync for normal properties")]
         public async Task DeleteAsync_DoesNotCallIndexDataDeleteAsyncForNormalProperties()
         {
             var entity = getTestEntity();
@@ -101,7 +108,7 @@ namespace CheesyTot.AzureTables.SimpleIndex.Tests
             _moqIndexData.Verify(x => x.DeleteAsync(entity, getPropertyInfo(nameof(TestEntity.NormalProperty))), Times.Never);
         }
 
-        [TestMethod("DeleteAsync calls TableClient.DeleteEntityAsync")]
+        [TestMethod("DeleteAsync: Calls TableClient.DeleteEntityAsync")]
         public async Task DeleteAsync_CallsTableClientDeleteEntityAsync()
         {
             var entity = getTestEntity();
@@ -109,14 +116,14 @@ namespace CheesyTot.AzureTables.SimpleIndex.Tests
             _moqTableClient.Verify(x => x.DeleteEntityAsync(entity.PartitionKey, entity.RowKey, ETag.All, CancellationToken.None), Times.Once);
         }
 
-        [TestMethod("GetAsync() calls TableClient.QueryAsync()")]
+        [TestMethod("GetAsync(): Calls TableClient.QueryAsync()")]
         public async Task GetAsync_CallsTableClientQueryAsync()
         {
             await _repository.GetAsync();
             _moqTableClient.Verify(x => x.QueryAsync<TestEntity>(default(string), null, null, CancellationToken.None), Times.Once);
         }
 
-        [TestMethod("GetAsync(partitionKey) calls TableClient.QueryAsync([partitionKeyFilter])")]
+        [TestMethod("GetAsync(partitionKey): Calls TableClient.QueryAsync([partitionKeyFilter])")]
         public async Task GetAsyncPartitionKey_CallsQueryAsyncWithPartitionKeyFilter()
         {
             var partitionKey = Guid.NewGuid().ToString();
@@ -125,71 +132,28 @@ namespace CheesyTot.AzureTables.SimpleIndex.Tests
             _moqTableClient.Verify(x => x.QueryAsync<TestEntity>(filter, null, null, CancellationToken.None), Times.Once);
         }
 
-        [TestMethod("GetAsync(partitionKey, rowKey) calls TableClient.GetEntityAsync<T>(partitionKey, rowKey)")]
+        [TestMethod("GetAsync(partitionKey, rowKey): Calls TableClient.GetEntityAsync<T>(partitionKey, rowKey)")]
         public async Task GetAsyncPartitionKeyRowKey_CallsTableClientGetEntityAsyncPartitionKeyRowKey()
         {
             await _repository.GetAsync(_entities["GetAsync1"].PartitionKey, _entities["GetAsync1"].RowKey);
             _moqTableClient.Verify(x => x.GetEntityAsync<TestEntity>(_entities["GetAsync1"].PartitionKey, _entities["GetAsync1"].RowKey, default(IEnumerable<string>), default(CancellationToken)), Times.Once);
         }
 
-        [TestMethod("GetIndexKey throws ArgumentNullException if propertyName is null")]
-        [ExpectedException(typeof(ArgumentNullException))]
-        public void GetIndexKey_ThrowsArgumentNullExceptionIfPropertyNameIsNull()
-        {
-            _repository.GetIndexKey(null, It.IsAny<object>());
-        }
-
-        [TestMethod("GetIndexKey throws ArgumentNullException if propertyName is empty")]
-        [ExpectedException(typeof(ArgumentNullException))]
-        public void GetIndexKey_ThrowsArgumentNullExceptionIfPropertyNameIsEmpty()
-        {
-            _repository.GetIndexKey(string.Empty, It.IsAny<object>());
-        }
-
-        [TestMethod("GetIndexKey throws ArgumentNullException if propertyName is all white space")]
-        [ExpectedException(typeof(ArgumentNullException))]
-        public void GetIndexKey_ThrowsArgumentNullExceptionIfPropertyNameIsAllWhiteSpace()
-        {
-            _repository.GetIndexKey("     ", It.IsAny<object>());
-        }
-
-        [TestMethod("GetIndexKey throws ArgumentOutOfRangeException if propertyName does not correspond to an indexed property")]
-        [ExpectedException(typeof(ArgumentOutOfRangeException))]
-        public void GetIndexKey_ThrowsArgumentOutOfRangeExceptionIfPropertyNameDoesNotCorrespondToAnIndexedProperty()
-        {
-            _repository.GetIndexKey(nameof(TestEntity.NormalProperty), It.IsAny<object>());
-        }
-
-        [TestMethod("GetIndexKey returns excpected IndexKey for valid propertyName and not-null propertyValue")]
-        public void GetIndexKey_ReturnsExpectedIndexKeyForValidPropertyNameAndNotNullPropertyValue()
-        {
-            var obj = new { Fizz = "Buzz" };
-            var indexKey = _repository.GetIndexKey(nameof(TestEntity.IndexedProperty1), obj);
-            Assert.IsTrue(indexKey.PropertyName == nameof(TestEntity.IndexedProperty1) && indexKey.PropertyValue == Convert.ToString(obj));
-        }
-
-        [TestMethod("GetIndexKey returns excpected IndexKey for valid propertyName and null propertyValue")]
-        public void GetIndexKey_ReturnsExpectedIndexKeyForValidPropertyNameAndNullPropertyValue()
-        {
-            var indexKey = _repository.GetIndexKey(nameof(TestEntity.IndexedProperty1), null);
-            Assert.IsTrue(indexKey.PropertyName == nameof(TestEntity.IndexedProperty1) && indexKey.PropertyValue == string.Empty);
-        }
-
-        [TestMethod]
+        [TestMethod("GetByIndexesAsync: Returns empty if indexes are null")]
         public async Task GetByIndexesAsync_ReturnsEmptyIfIndexesAreNull()
         {
             var result = await _repository.GetByIndexesAsync(null);
             Assert.IsTrue(!result.Any());
         }
 
-        [TestMethod]
+        [TestMethod("GetByIndexesAsync: Returns empty if indexes are empty")]
         public async Task GetByIndexesAsync_ReturnsEmptyIfIndexesAreEmpty()
         {
             var result = await _repository.GetByIndexesAsync(Enumerable.Empty<Indexing.Index>());
             Assert.IsTrue(!result.Any());
         }
 
-        [TestMethod]
+        [TestMethod("GetByIndexesAsync: Calls TableClient.GetEntityAsync for each index")]
         public async Task GetByIndexesAsync_CallsTableClientGetEntityAsyncForEachIndex()
         {
             var indexes = new[] { _indexes["GetByIndexes1"], _indexes["GetByIndexes2"], _indexes["GetByIndexes3"] };
@@ -244,52 +208,146 @@ namespace CheesyTot.AzureTables.SimpleIndex.Tests
             _moqTableClient.Verify(x => x.QueryAsync<TestEntity>(filter, default(int?), default(IEnumerable<string>), CancellationToken.None), Times.Once);
         }
 
+        [TestMethod("GetByIndexedPropertyAsync: Calls IndexData.GetAllIndexesAsync")]
+        public async Task GetByIndexedPropertyAsyncCallsIndexDataGetAllIndexesAsync()
+        {
+            var propertyName = nameof(TestEntity.IndexedProperty1);
+            var propertyValue = _entities["GetByIndexes1"].IndexedProperty1;
+            var indexKey = new IndexKey(propertyName, propertyValue);
+            
+            await _repository.GetByIndexedPropertyAsync(propertyName, propertyValue);
 
+            _moqIndexData.Verify(x => x.GetAllIndexesAsync(indexKey), Times.Once);
+        }
 
+        [TestMethod("GetByIndexedPropertiesAsync: Calls TableClient.GetEntityAsync for each index result")]
+        public async Task GetByIndexedPropertiesAsync_CallsTableClientGetEntityAsyncForEachIndexResult()
+        {
+            var propertyName = nameof(TestEntity.IndexedProperty1);
+            var propertyValue = _entities["GetByIndexes1"].IndexedProperty1;
 
-        //[TestMethod("GetByIndexedPropertyAsync throws ArgumentNullException if propertyName is null")]
-        //[ExpectedException(typeof(ArgumentNullException))]
-        //public async Task GetByIndexedPropertyAsync_ThrowsArgumentNullExceptionIfPropertyNameIsNull()
-        //{
-        //    await _repository.GetByIndexedPropertyAsync(null, It.IsAny<object>());
-        //}
+            await _repository.GetByIndexedPropertyAsync(propertyName, propertyValue);
 
-        //[TestMethod("GetByIndexedPropertyAsync throws ArgumentNullException if propertyName is empty")]
-        //[ExpectedException(typeof(ArgumentNullException))]
-        //public async Task GetByIndexedPropertyAsync_ThrowsArgumentNullExceptionIfPropertyNameIsEmpty()
-        //{
-        //    await _repository.GetByIndexedPropertyAsync(string.Empty, It.IsAny<object>());
-        //}
+            _moqTableClient.Verify(x => x.GetEntityAsync<TestEntity>(_entities["GetByIndexes1"].PartitionKey, _entities["GetByIndexes1"].RowKey, default(IEnumerable<string>), default(CancellationToken)), Times.Once);
+            _moqTableClient.Verify(x => x.GetEntityAsync<TestEntity>(_entities["GetByIndexes2"].PartitionKey, _entities["GetByIndexes2"].RowKey, default(IEnumerable<string>), default(CancellationToken)), Times.Once);
+        }
 
-        //[TestMethod("GetByIndexedPropertyAsync throws ArgumentNullException if propertyName is all white space")]
-        //[ExpectedException(typeof(ArgumentNullException))]
-        //public async Task GetByIndexedPropertyAsync_ThrowsArgumentNullExceptionIfPropertyNameIsAllWhiteSpace()
-        //{
-        //    await _repository.GetByIndexedPropertyAsync("     ", It.IsAny<object>());
-        //}
+        [TestMethod("GetByIndexedPropertiesAsync: Returns empty if no records are found")]
+        public async Task GetByIndexedPropertiesAsync_ReturnsEmptyIfNoRecordsAreFound()
+        {
+            var propertyName = nameof(TestEntity.IndexedProperty1);
+            var propertyValue = "NotFoundValue";
 
-        //[TestMethod("GetByIndexedPropertyAsync throws ArgumentOutOfRangeException if property is not indexed")]
-        //[ExpectedException(typeof(ArgumentOutOfRangeException))]
-        //public async Task GetByIndexedPropertyAsync_ThrowsArgumentOutOfRangeExceptionIfPropertyIsNotIndexed()
-        //{
-        //    await _repository.GetByIndexedPropertyAsync(nameof(TestEntity.NormalProperty), It.IsAny<object>());
-        //}
+            var result = await _repository.GetByIndexedPropertyAsync(propertyName, propertyValue);
 
-        //[TestMethod("GetSingleByIndexedPropertyAsync throws ArgumentNullException if propertyName is null")]
-        //public async Task GetSingleByIndexedPropertyAsync_ThrowsArgumentNullExceptionIfPropertyNameIsNull()
-        //{
-        //    _moqIndexData.Setup(x => x.)
-        //}
+            Assert.IsFalse(result.Any());
+        }
 
+        [TestMethod("GetSingleByIndexedPropertyAsync: Calls IndexData.GetSingleIndexOrDefaultAsync")]
+        public async Task GetSingleByIndexedPropertyAsync_CallsIndexDataGetSingleIndexOrDefaultAsync()
+        {
+            var propertyName = nameof(TestEntity.IndexedProperty1);
+            var propertyValue = _entities["GetSingleByIndexedPropertyAsync"].IndexedProperty1;
+            var indexKey = new IndexKey(propertyName, propertyValue);
 
+            await _repository.GetSingleByIndexedPropertyAsync(propertyName, propertyValue);
 
+            _moqIndexData.Verify(x => x.GetSingleIndexAsync(indexKey), Times.Once);
+        }
 
+        [TestMethod("GetSingleByIndexedPropertyAsync: Calls TableClient.GetEntityAsync")]
+        public async Task GetSingleByIndexedPropertyAsync_CallsTableClientGetEntityAsync()
+        {
+            var propertyName = nameof(TestEntity.IndexedProperty1);
+            var propertyValue = _entities["GetSingleByIndexedPropertyAsync"].IndexedProperty1;
 
+            await _repository.GetSingleByIndexedPropertyAsync(propertyName, propertyValue);
 
+            _moqTableClient.Verify(x => x.GetEntityAsync<TestEntity>(_entities["GetSingleByIndexedPropertyAsync"].PartitionKey, _entities["GetSingleByIndexedPropertyAsync"].RowKey, default(IEnumerable<string>), default(CancellationToken)), Times.Once);
+        }
 
+        [TestMethod("GetSingleByIndexedPropertyAsync: Throws if no record is found")]
+        [ExpectedException(typeof(InvalidOperationException))]
+        public async Task GetSingleByIndexedPropertyAsync_ThrowsIfNoRecordFound()
+        {
+            var propertyName = nameof(TestEntity.IndexedProperty1);
+            var propertyValue = "NotFoundValue";
+            await _repository.GetSingleByIndexedPropertyAsync(propertyName, propertyValue);
+        }
 
+        [TestMethod("GetSingleOrDefaultByIndexedPropertyAsync: Calls IndexData.GetSingleIndexOrDefaultAsync")]
+        public async Task GetSingleOrDefaultByIndexedPropertyAsync_CallsIndexDataGetSingleIndexOrDefaultAsync()
+        {
+            var propertyName = nameof(TestEntity.IndexedProperty1);
+            var propertyValue = _entities["GetSingleByIndexedPropertyAsync"].IndexedProperty1;
+            var indexKey = new IndexKey(propertyName, propertyValue);
 
+            await _repository.GetSingleOrDefaultByIndexedPropertyAsync(propertyName, propertyValue);
 
+            _moqIndexData.Verify(x => x.GetSingleIndexOrDefaultAsync(indexKey), Times.Once);
+        }
+
+        [TestMethod("GetSingleOrDefaultByIndexedPropertyAsync: Calls TableClient.GetEntityAsync")]
+        public async Task GetSingleOrDefaultByIndexedPropertyAsync_CallsTableClientGetEntityAsync()
+        {
+            var propertyName = nameof(TestEntity.IndexedProperty1);
+            var propertyValue = _entities["GetSingleByIndexedPropertyAsync"].IndexedProperty1;
+
+            await _repository.GetSingleOrDefaultByIndexedPropertyAsync(propertyName, propertyValue);
+
+            _moqTableClient.Verify(x => x.GetEntityAsync<TestEntity>(_entities["GetSingleByIndexedPropertyAsync"].PartitionKey, _entities["GetSingleByIndexedPropertyAsync"].RowKey, default(IEnumerable<string>), default(CancellationToken)), Times.Once);
+        }
+
+        [TestMethod("GetSingleOrDefaultByIndexedPropertyAsync: Returns null if not found")]
+        public async Task GetSingleOrDefaultByIndexedPropertyAsync_ReturnsNullIfNotFound()
+        {
+            var propertyName = nameof(TestEntity.IndexedProperty1);
+            var propertyValue = "NotFoundValue";
+            var result = await _repository.GetSingleOrDefaultByIndexedPropertyAsync(propertyName, propertyValue);
+            Assert.IsNull(result);
+        }
+
+        [TestMethod("GetFirstByIndexedPropertyAsync: Calls IndexData.GetFirstIndexOrDefaultAsync")]
+        public async Task GetFirstByIndexedPropertyAsync_CallsIndexDataGetFirstIndexOrDefaultAsync()
+        {
+            var propertyName = nameof(TestEntity.IndexedProperty1);
+            var propertyValue = _entities["GetSingleByIndexedPropertyAsync"].IndexedProperty1;
+            var indexKey = new IndexKey(propertyName, propertyValue);
+
+            await _repository.GetFirstByIndexedPropertyAsync(propertyName, propertyValue);
+
+            _moqIndexData.Verify(x => x.GetFirstIndexAsync(indexKey), Times.Once);
+        }
+
+        [TestMethod("GetFirstOrDefaultByIndexedPropertyAsync: Calls IndexData.GetFirstIndexOrDefaultAsync")]
+        public async Task GetFirstOrDefaultByIndexedPropertyAsync_CallsIndexDataGetFirstIndexOrDefaultAsync()
+        {
+            var propertyName = nameof(TestEntity.IndexedProperty1);
+            var propertyValue = _entities["GetSingleByIndexedPropertyAsync"].IndexedProperty1;
+            var indexKey = new IndexKey(propertyName, propertyValue);
+
+            await _repository.GetFirstOrDefaultByIndexedPropertyAsync(propertyName, propertyValue);
+
+            _moqIndexData.Verify(x => x.GetFirstIndexOrDefaultAsync(indexKey), Times.Once);
+        }
+
+        [TestMethod("GetFirstByIndexedPropertyAsync: Throws if no record is found")]
+        [ExpectedException(typeof(InvalidOperationException))]
+        public async Task GetFirstByIndexedPropertyAsync_ThrowsIfNoRecordFound()
+        {
+            var propertyName = nameof(TestEntity.IndexedProperty1);
+            var propertyValue = "NotFoundValue";
+            await _repository.GetFirstByIndexedPropertyAsync(propertyName, propertyValue);
+        }
+
+        [TestMethod("GetFirstOrDefaultByIndexedPropertyAsync: Returns null if not found")]
+        public async Task GetFirstOrDefaultByIndexedPropertyAsync_ReturnsNullIfNotFound()
+        {
+            var propertyName = nameof(TestEntity.IndexedProperty1);
+            var propertyValue = "NotFoundValue";
+            var result = await _repository.GetFirstOrDefaultByIndexedPropertyAsync(propertyName, propertyValue);
+            Assert.IsNull(result);
+        }
 
         private TestEntity getTestEntity() => new TestEntity(Guid.NewGuid().ToString(), Guid.NewGuid().ToString())
         {
