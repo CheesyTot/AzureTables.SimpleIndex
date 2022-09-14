@@ -27,5 +27,15 @@ namespace CheesyTot.AzureTables.SimpleIndex.Indexing
 
         [IgnoreDataMember]
         public EntityKey EntityKey => EntityKey.FromString(RowKey);
+
+        public override bool Equals(object obj)
+        {
+            var other = obj as Indexing.Index;
+
+            if (obj == null)
+                return false;
+
+            return string.Equals(PartitionKey, other.PartitionKey) && string.Equals(RowKey, other.RowKey);
+        }
     }
 }

@@ -20,7 +20,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <None Include="Images\cheesytot-icon.png" Pack="true" PackagePath="\"/>
+    <None Include="Images\cheesytot-icon.png" Pack="true" PackagePath="\" />
   </ItemGroup>
 
 </Project>

@@ -1,5 +1,7 @@
 # CheesyTot.AzureTables.SimpleIndex
 
+[![.NET](https://github.com/CheesyTot/AzureTables.SimpleIndex/actions/workflows/dotnet.yml/badge.svg)](https://github.com/CheesyTot/AzureTables.SimpleIndex/actions/workflows/dotnet.yml)
+
 This project provides a simple way to add indexing to your Azure Table Storage entities.
 
 ### Decorate properties to be indexed
@@ -18,7 +20,6 @@ public class Cat : SimpleIndexTableEntity
 }
 ```
 ### Query by indexed properties
-
 ```
 public class MyDataAccess
 {
