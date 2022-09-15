@@ -14,9 +14,9 @@ namespace CheesyTot.AzureTables.SimpleIndex.Entities
             RowKey = rowKey;
         }
 
-        public string PartitionKey { get; set; }
-        public string RowKey { get; set; }
-        public DateTimeOffset? Timestamp { get; set; }
-        public ETag ETag { get; set; }
+        public virtual string PartitionKey { get; set; }
+        public virtual string RowKey { get; set; }
+        public virtual DateTimeOffset? Timestamp { get; set; }
+        public virtual ETag ETag { get; set; }
     }
 }

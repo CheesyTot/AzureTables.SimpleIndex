@@ -2,7 +2,7 @@
 
 [![.NET](https://github.com/CheesyTot/AzureTables.SimpleIndex/actions/workflows/dotnet.yml/badge.svg)](https://github.com/CheesyTot/AzureTables.SimpleIndex/actions/workflows/dotnet.yml)
 
-This project provides a simple way to add indexing to your Azure Table Storage entities.
+This project provides a simple way to add simple indexing to your Azure Table Storage entities.
 
 ### Decorate properties to be indexed
 

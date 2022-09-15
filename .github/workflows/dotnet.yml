@@ -38,5 +38,5 @@ jobs:
       run: dotnet test
     - name: Package NuGet
       run: dotnet pack --configuration release -o:package /p:PackageVersion=${{ steps.gitversion.outputs.AssemblySemVer }}
-    - name: Push NuGet to NuGet.org
-      run: dotnet nuget push ./package/*.nupkg --api-key ${{ secrets.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json
+#    - name: Push NuGet to NuGet.org
+#      run: dotnet nuget push ./package/*.nupkg --api-key ${{ secrets.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json
