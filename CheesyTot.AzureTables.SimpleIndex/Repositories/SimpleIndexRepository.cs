@@ -8,6 +8,9 @@ using System.Net;
 using System.Threading.Tasks;
 using CheesyTot.AzureTables.SimpleIndex.Indexing;
 using System.Threading;
+using CheesyTot.AzureTables.SimpleIndex.Attributes;
+using System.Text.RegularExpressions;
+using CheesyTot.AzureTables.SimpleIndex.Helpers;
 
 namespace CheesyTot.AzureTables.SimpleIndex.Repositories
 {
@@ -17,6 +20,9 @@ namespace CheesyTot.AzureTables.SimpleIndex.Repositories
     /// <typeparam name="T"></typeparam>
     public class SimpleIndexRepository<T> : ISimpleIndexRepository<T> where T : class, ITableEntity, new()
     {
+        private Regex rxSingleAlphaCharacter = new Regex("[A-z]", RegexOptions.Compiled);
+        private Regex rxNonAlphanumericCharacter = new Regex("[^A-z0-9]", RegexOptions.Compiled);
+
         /// <summary>
         /// Constructor that accepts <paramref name="options"></paramref> and creates the entity and index tables in Azure Table Storage.
         /// </summary>
@@ -25,7 +31,7 @@ namespace CheesyTot.AzureTables.SimpleIndex.Repositories
         {
             TableClient = new TableClient(
                 options.CurrentValue.StorageConnectionString,
-                $"{options.CurrentValue.TablePrefix}{typeof(T).Name}");
+                TableNameHelper.GetTableName<T>(options.CurrentValue.TablePrefix, null));
 
             TableClient.CreateIfNotExists();
 

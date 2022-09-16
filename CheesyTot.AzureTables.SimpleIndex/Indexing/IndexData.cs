@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using CheesyTot.AzureTables.SimpleIndex.Repositories;
 using Azure;
 using System.Threading;
+using CheesyTot.AzureTables.SimpleIndex.Helpers;
 
 namespace CheesyTot.AzureTables.SimpleIndex.Indexing
 {
@@ -25,7 +26,7 @@ namespace CheesyTot.AzureTables.SimpleIndex.Indexing
         {
             _tableClient = new TableClient(
                 options.StorageConnectionString,
-                $"{options.TablePrefix}{typeof(T).Name}{options.IndexTableSuffix}"
+                TableNameHelper.GetTableName<T>(options.TablePrefix, options.IndexTableSuffix)
             );
 
             _tableClient.CreateIfNotExists();

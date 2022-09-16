@@ -1,13 +1,15 @@
 ﻿using Azure;
 using Azure.Data.Tables;
+using CheesyTot.AzureTables.SimpleIndex.Attributes;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
 namespace CheesyTot.AzureTables.SimpleIndex
 {
-    public static class InternalExtensions
+    public static class Extensions
     {
         /// <summary>
         /// Extension for <see cref="Azure.AsyncPageable{T}">AsyncPageable</see> that gets all results as an IEnumerable.
