@@ -19,6 +19,9 @@ public class Cat : ITableEntity
     [SimpleIndex]
     public string Breed { get; set; }
     
+    [SingleIndex]
+    public int YearBorn {get; set;}
+
     public string Name { get; set; }
 }
 ```
@@ -34,7 +37,7 @@ builder.Services.Configure<RepositoryOptions>(options =>
 
 builder.Services.AddScoped<ISimpleIndexRepository<Cat>, SimpleIndexRepository<Cat>>();
 ```
-### Query by indexed properties
+### Query by indexed property
 ```
 public class MyDataAccess
 {
@@ -50,6 +53,22 @@ public class MyDataAccess
         return await _cat.GetByIndexedPropertyAsync("Breed", breed);
     }
 }
+```
+### Query by multiple indexed properties
+```
+    public async Task<IEnumerable<Cat>> GetCatsByBreedAndBirthYear(string breed, int birthYear)
+    {
+        var breedResults = await _cat.GetByIndexedPropertyAsync("Breed", breed);
+        var yearResults = await _cat.GetByIndexedPropertyAsync("BirthYear", birthYear);
+        return breedResults.Intersect(yearResults);
+    }
+
+    public async Task<IEnumerable<Cat>> GetCatsByBreedOrBirthYear(string breed, int birthYear)
+    {
+        var breedResults = await _cat.GetByIndexedPropertyAsync("Breed", breed);
+        var yearResults = await _cat.GetByIndexedPropertyAsync("BirthYear", birthYear);
+        return breedResults.Union(yearResults);
+    }
 ```
 ### Specify the tableName instead of using the class name
 ```
