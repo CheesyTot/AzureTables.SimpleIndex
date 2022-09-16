@@ -51,3 +51,11 @@ public class MyDataAccess
     }
 }
 ```
+### Specify the tableName instead of using the class name
+```
+[TableName("Feline")]
+public class Cat : ITableEntity
+{
+    ...
+}
+```
