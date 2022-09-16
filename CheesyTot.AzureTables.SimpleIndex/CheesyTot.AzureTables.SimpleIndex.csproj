@@ -12,6 +12,7 @@
     <RepositoryUrl>https://github.com/CheesyTot/AzureTables.SimpleIndex</RepositoryUrl>
     <PackageTags>Azure;Table;Storage;Index;Repository</PackageTags>
 	<PackageReadmeFile>README.md</PackageReadmeFile>
+	<PackageLicenseFile>LICENSE</PackageLicenseFile>
   </PropertyGroup>
 
   <ItemGroup>
@@ -23,6 +24,7 @@
   <ItemGroup>
 	<None Include="../cheesytot-icon.png" Pack="true" PackagePath="\" />
 	<None Include="../README.md" Pack="true" PackagePath="\" />
+	<None Include="../LICENSE" Pack="true" PackagePath="\" />
   </ItemGroup>
 
 </Project>
