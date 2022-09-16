@@ -1,15 +1,23 @@
-﻿using CheesyTot.AzureTables.SimpleIndex.Attributes;
-using CheesyTot.AzureTables.SimpleIndex.Entities;
+﻿using Azure;
+using Azure.Data.Tables;
+using CheesyTot.AzureTables.SimpleIndex.Attributes;
 
 namespace CheesyTot.AzureTables.SimpleIndex.Tests
 {
-    public class TestEntity : SimpleIndexTableEntity
+    public class TestEntity : ITableEntity
     {
         public TestEntity() { }
 
         public TestEntity(string partitionKey, string rowKey)
-            : base(partitionKey, rowKey)
-        { }
+        {
+            PartitionKey = partitionKey;
+            RowKey = rowKey;
+        }
+
+        public string PartitionKey { get; set;}
+        public string RowKey { get; set; }
+        public DateTimeOffset? Timestamp { get; set; }
+        public ETag ETag { get; set; }
 
         [SimpleIndex]
         public string IndexedProperty1 { get; set; }

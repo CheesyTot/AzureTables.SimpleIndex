@@ -5,19 +5,22 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
-using System.Reflection;
 using System.Threading.Tasks;
-using CheesyTot.AzureTables.SimpleIndex.Attributes;
 using CheesyTot.AzureTables.SimpleIndex.Indexing;
 using System.Threading;
 
 namespace CheesyTot.AzureTables.SimpleIndex.Repositories
 {
+    /// <summary>
+    /// Implementation of the base methods for the indexed repository functionality.
+    /// </summary>
+    /// <typeparam name="T"></typeparam>
     public class SimpleIndexRepository<T> : ISimpleIndexRepository<T> where T : class, ITableEntity, new()
     {
-        private const int DEFAULT_CHUNK_SIZE = 25;
-        private int _chunkSize;
-
+        /// <summary>
+        /// Constructor that accepts <paramref name="options"></paramref> and creates the entity and index tables in Azure Table Storage.
+        /// </summary>
+        /// <param name="options"></param>
         public SimpleIndexRepository(IOptionsMonitor<SimpleIndexRepositoryOptions> options)
         {
             TableClient = new TableClient(
@@ -27,20 +30,35 @@ namespace CheesyTot.AzureTables.SimpleIndex.Repositories
             TableClient.CreateIfNotExists();
 
             IndexData = new IndexData<T>(options.CurrentValue);
-
-            _chunkSize = options.CurrentValue.ChunkSize;
         }
 
-        public SimpleIndexRepository(TableClient tableClient, IIndexData<T> indexData, int chunkSize = DEFAULT_CHUNK_SIZE)
+        /// <summary>
+        /// Constructor that accepts TableClient and IndexData parameters for unit testing
+        /// </summary>
+        /// <param name="tableClient"></param>
+        /// <param name="indexData"></param>
+        public SimpleIndexRepository(TableClient tableClient, IIndexData<T> indexData)
         {
             TableClient = tableClient;
             IndexData = indexData;
-            _chunkSize = chunkSize;
         }
 
+        /// <summary>
+        /// The <see cref="Azure.Data.Tables.TableClient">TableClient</see> used by the repository
+        /// </summary>
         protected TableClient TableClient { get; }
+
+        /// <summary>
+        /// The <see cref="CheesyTot.AzureTables.SimpleIndex.Indexing.IndexData{T}"/> used by the repository
+        /// </summary>
         protected IIndexData<T> IndexData { get; }
 
+        /// <summary>
+        /// Add an entity and index records for all entity properties that are decorated with the <see cref="CheesyTot.AzureTables.SimpleIndex.Attributes.SimpleIndexAttribute">SimpleIndexAttribute</see>.
+        /// </summary>
+        /// <param name="entity"></param>
+        /// <returns></returns>
+        /// <exception cref="ArgumentNullException">Thrown if <paramref name="entity">entity</paramref> is null.</exception>
         public virtual async Task AddAsync(T entity)
         {
             if (entity == null)
@@ -52,6 +70,12 @@ namespace CheesyTot.AzureTables.SimpleIndex.Repositories
             await TableClient.AddEntityAsync(entity);
         }
 
+        /// <summary>
+        /// Remove an entity and index records for all entity properties that are decorated with the <see cref="CheesyTot.AzureTables.SimpleIndex.Attributes.SimpleIndexAttribute">SimpleIndexAttribute</see>.
+        /// </summary>
+        /// <param name="entity"></param>
+        /// <returns></returns>
+        /// <exception cref="ArgumentNullException">Thrown if <paramref name="entity">entity</paramref> is null.</exception>
         public virtual async Task DeleteAsync(T entity)
         {
             if (entity == null)
@@ -63,12 +87,27 @@ namespace CheesyTot.AzureTables.SimpleIndex.Repositories
             await TableClient.DeleteEntityAsync(entity.PartitionKey, entity.RowKey, ETag.All);
         }
 
+        /// <summary>
+        /// Get all entities.
+        /// </summary>
+        /// <returns></returns>
         public virtual async Task<IEnumerable<T>> GetAsync() =>
             await TableClient.QueryAsync<T>().AsEnumerableAsync();
 
+        /// <summary>
+        /// Get all entities with the specified <paramref name="partitionKey">PartitionKey</paramref>.
+        /// </summary>
+        /// <param name="partitionKey"></param>
+        /// <returns></returns>
         public virtual async Task<IEnumerable<T>> GetAsync(string partitionKey) =>
             await TableClient.QueryAsync<T>($"PartitionKey eq '{partitionKey}'").AsEnumerableAsync();
 
+        /// <summary>
+        /// Get an entity by its <paramref name="partitionKey">PartitionKey</paramref> and <paramref name="rowKey">RowKey</paramref>.
+        /// </summary>
+        /// <param name="partitionKey"></param>
+        /// <param name="rowKey"></param>
+        /// <returns></returns>
         public virtual async Task<T> GetAsync(string partitionKey, string rowKey)
         {
             try
@@ -83,6 +122,14 @@ namespace CheesyTot.AzureTables.SimpleIndex.Repositories
             return null;
         }
 
+        /// <summary>
+        /// Get all entities that match the indexed property name and value.
+        /// </summary>
+        /// <param name="propertyName"></param>
+        /// <param name="propertyValue"></param>
+        /// <returns></returns>
+        /// <exception cref="System.ArgumentNullException">Thrown if the propertyName is null, an empty string, or is all white space characters.</exception>
+        /// <exception cref="System.ArgumentOutOfRangeException">Thrown if the property either does not exist or is not decorated with the <see cref="CheesyTot.AzureTables.SimpleIndex.Attributes.SimpleIndexAttribute">SimpleIndexAttribute</see>.</exception>
         public virtual async Task<IEnumerable<T>> GetByIndexedPropertyAsync(string propertyName, object propertyValue)
         {
             var indexKey = IndexKey.GetIndexKey<T>(propertyName, propertyValue);
@@ -94,6 +141,15 @@ namespace CheesyTot.AzureTables.SimpleIndex.Repositories
             return await GetByIndexesAsync(indexes);
         }
 
+        /// <summary>
+        /// Gets a single entity that matches the indexed property name and value, or throws an exception if there are no matches, or if there are more than one match.
+        /// </summary>
+        /// <param name="propertyName"></param>
+        /// <param name="propertyValue"></param>
+        /// <returns></returns>
+        /// <exception cref="System.ArgumentNullException">Thrown if the propertyName is null, an empty string, or is all white space characters.</exception>
+        /// <exception cref="System.ArgumentOutOfRangeException">Thrown if the property either does not exist or is not decorated with the <see cref="CheesyTot.AzureTables.SimpleIndex.Attributes.SimpleIndexAttribute">SimpleIndexAttribute</see>.</exception>
+        /// <exception cref="System.InvalidOperationException">Thrown if there are no matches, or if there are more than one match.</exception>
         public virtual async Task<T> GetSingleByIndexedPropertyAsync(string propertyName, object propertyValue)
         {
             var indexKey = IndexKey.GetIndexKey<T>(propertyName, propertyValue);
@@ -101,6 +157,15 @@ namespace CheesyTot.AzureTables.SimpleIndex.Repositories
             return await GetAsync(index.EntityKey.PartitionKey, index.EntityKey.RowKey);
         }
 
+        /// <summary>
+        /// Gets a single entity that matches the indexed property name and value, returns null if there are no matches, or throws an exception if there are more than one match.
+        /// </summary>
+        /// <param name="propertyName"></param>
+        /// <param name="propertyValue"></param>
+        /// <returns></returns>
+        /// <exception cref="System.ArgumentNullException">Thrown if the propertyName is null, an empty string, or is all white space characters.</exception>
+        /// <exception cref="System.ArgumentOutOfRangeException">Thrown if the property either does not exist or is not decorated with the <see cref="CheesyTot.AzureTables.SimpleIndex.Attributes.SimpleIndexAttribute">SimpleIndexAttribute</see>.</exception>
+        /// <exception cref="System.InvalidOperationException">Thrown if there are no matches.</exception>
         public virtual async Task<T> GetSingleOrDefaultByIndexedPropertyAsync(string propertyName, object propertyValue)
         {
             var indexKey = IndexKey.GetIndexKey<T>(propertyName, propertyValue);
@@ -112,6 +177,15 @@ namespace CheesyTot.AzureTables.SimpleIndex.Repositories
             return await GetAsync(index.EntityKey.PartitionKey, index.EntityKey.RowKey);
         }
 
+        /// <summary>
+        /// Gets the first entity that matches the indexed property name and value, or throw an exception if there are no matches.
+        /// </summary>
+        /// <param name="propertyName"></param>
+        /// <param name="propertyValue"></param>
+        /// <returns></returns>
+        /// <exception cref="System.ArgumentNullException">Thrown if the propertyName is null, an empty string, or is all white space characters.</exception>
+        /// <exception cref="System.ArgumentOutOfRangeException">Thrown if the property either does not exist or is not decorated with the <see cref="CheesyTot.AzureTables.SimpleIndex.Attributes.SimpleIndexAttribute">SimpleIndexAttribute</see>.</exception>
+        /// <exception cref="System.InvalidOperationException">Thrown if there are no matches.</exception>
         public virtual async Task<T> GetFirstByIndexedPropertyAsync(string propertyName, object propertyValue)
         {
             var indexKey = IndexKey.GetIndexKey<T>(propertyName, propertyValue);
@@ -123,6 +197,14 @@ namespace CheesyTot.AzureTables.SimpleIndex.Repositories
             return await GetAsync(index.EntityKey.PartitionKey, index.EntityKey.RowKey);
         }
 
+        /// <summary>
+        /// Gets the first entity that matches the indexed property name and value, or null if there are no matches.
+        /// </summary>
+        /// <param name="propertyName"></param>
+        /// <param name="propertyValue"></param>
+        /// <returns></returns>
+        /// <exception cref="System.ArgumentNullException">Thrown if the propertyName is null, an empty string, or is all white space characters.</exception>
+        /// <exception cref="System.ArgumentOutOfRangeException">Thrown if the property either does not exist or is not decorated with the <see cref="CheesyTot.AzureTables.SimpleIndex.Attributes.SimpleIndexAttribute">SimpleIndexAttribute</see>.</exception>
         public virtual async Task<T> GetFirstOrDefaultByIndexedPropertyAsync(string propertyName, object propertyValue)
         {
             var indexKey = IndexKey.GetIndexKey<T>(propertyName, propertyValue);
@@ -134,11 +216,23 @@ namespace CheesyTot.AzureTables.SimpleIndex.Repositories
             return await GetAsync(index.EntityKey.PartitionKey, index.EntityKey.RowKey);
         }
 
+        /// <summary>
+        /// Performs an entity query.
+        /// </summary>
+        /// <param name="filter"></param>
+        /// <returns></returns>
         public virtual async Task<IEnumerable<T>> QueryAsync(string filter)
         {
             return await TableClient.QueryAsync<T>(filter, default(int?), default(IEnumerable<string>), CancellationToken.None).AsEnumerableAsync();
         }
 
+        /// <summary>
+        /// Update an entity and replace any indexes for any changed properties that are decorated with the <see cref="CheesyTot.AzureTables.SimpleIndex.Attributes.SimpleIndexAttribute.">SimpleIndexAttribute</see>.
+        /// </summary>
+        /// <param name="entity"></param>
+        /// <returns></returns>
+        /// <exception cref="ArgumentNullException">Thrown if the <paramref name="entity">entity</paramref> is null.</exception>
+        /// <exception cref="ArgumentOutOfRangeException">Thrown if the <paramref name="entity">entity</paramref> does not exist.</exception>
         public virtual async Task UpdateAsync(T entity)
         {
             if (entity == null)
@@ -155,6 +249,11 @@ namespace CheesyTot.AzureTables.SimpleIndex.Repositories
             await TableClient.UpdateEntityAsync(entity, ETag.All, TableUpdateMode.Replace, CancellationToken.None);
         }
 
+        /// <summary>
+        /// Gets all entities that match any of the <paramref name="indexes">Indexes</paramref>.
+        /// </summary>
+        /// <param name="indexes"></param>
+        /// <returns></returns>
         public async Task<IEnumerable<T>> GetByIndexesAsync(IEnumerable<Index> indexes)
         {
             if ((indexes?.Count() ?? 0) == 0)

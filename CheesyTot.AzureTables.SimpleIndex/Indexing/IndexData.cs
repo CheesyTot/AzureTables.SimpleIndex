@@ -6,14 +6,21 @@ using System.Threading.Tasks;
 using CheesyTot.AzureTables.SimpleIndex.Repositories;
 using Azure;
 using System.Threading;
-using System.Linq;
 
 namespace CheesyTot.AzureTables.SimpleIndex.Indexing
 {
-    public class IndexData<T> : IIndexData<T> where T : ITableEntity, new()
+    /// <summary>
+    /// Implementation of the <see cref="CheesyTot.AzureTables.SimpleIndex.Indexing.IIndexData{T}">IIndexData</see> interface that implements the data access methods for the indexing functionality.
+    /// </summary>
+    /// <typeparam name="T">The implementation type of the <see cref="Azure.Data.Tables.ITableEntity">ITableEntity</see> that is indexed.</typeparam>
+    public class IndexData<T> : IIndexData<T> where T : class, ITableEntity, new()
     {
         private TableClient _tableClient;
 
+        /// <summary>
+        /// Constructor that accepts a <see cref="CheesyTot.AzureTables.SimpleIndex.Repositories.SimpleIndexRepositoryOptions>">SimpleIndexRepositoryOptions</see> parameter.
+        /// </summary>
+        /// <param name="options"></param>
         public IndexData(SimpleIndexRepositoryOptions options)
         {
             _tableClient = new TableClient(
@@ -24,11 +31,22 @@ namespace CheesyTot.AzureTables.SimpleIndex.Indexing
             _tableClient.CreateIfNotExists();
         }
 
+        /// <summary>
+        /// Constructor that accepts a <see cref="Azure.Data.Tables.TableClient">TableClient</see> parameter for unit testing
+        /// </summary>
+        /// <param name="tableClient"></param>
         public IndexData(TableClient tableClient)
         {
             _tableClient = tableClient;
         }
 
+        /// <summary>
+        /// Add an <see cref="CheesyTot.AzureTables.SimpleIndex.Indexing.Index">Index</see> record.
+        /// </summary>
+        /// <param name="entity"></param>
+        /// <param name="propertyInfo"></param>
+        /// <returns></returns>
+        /// <exception cref="ArgumentNullException"></exception>
         public async Task AddAsync(T entity, PropertyInfo propertyInfo)
         {
             if (entity == null)
@@ -45,6 +63,13 @@ namespace CheesyTot.AzureTables.SimpleIndex.Indexing
             await _tableClient.AddEntityAsync(index);
         }
 
+        /// <summary>
+        /// Delete an <see cref="CheesyTot.AzureTables.SimpleIndex.Indexing.Index">Index</see> record.
+        /// </summary>
+        /// <param name="entity"></param>
+        /// <param name="propertyInfo"></param>
+        /// <returns></returns>
+        /// <exception cref="ArgumentNullException">Thrown if <paramref name="entity">entity</paramref> parameter or the <paramref name="propertyInfo">propertyInfo</paramref> parameter is null.</exception>
         public async Task DeleteAsync(T entity, PropertyInfo propertyInfo)
         {
             if (entity == null)
@@ -59,6 +84,14 @@ namespace CheesyTot.AzureTables.SimpleIndex.Indexing
             await _tableClient.DeleteEntityAsync(indexKey.ToString(), EntityKey.FromEntity(entity).ToString(), ETag.All);
         }
 
+        /// <summary>
+        /// Replace an existing <see cref="CheesyTot.AzureTables.SimpleIndex.Indexing.Index">Index</see> record
+        /// </summary>
+        /// <param name="oldEntity"></param>
+        /// <param name="newEntity"></param>
+        /// <param name="propertyInfo"></param>
+        /// <returns></returns>
+        /// <exception cref="ArgumentNullException">Thrown if the <paramref name="newEntity">newEntity</paramref>, <paramref name="oldEntity">oldEntity</paramref>, or <paramref name="propertyInfo">propertyInfo</paramref> parameters are null.</exception>
         public async Task ReplaceAsync(T oldEntity, T newEntity, PropertyInfo propertyInfo)
         {
             if (oldEntity == null)
@@ -82,11 +115,22 @@ namespace CheesyTot.AzureTables.SimpleIndex.Indexing
             await _tableClient.AddEntityAsync(newIndex);
         }
 
+        /// <summary>
+        /// Retrieve all <see cref="CheesyTot.AzureTables.SimpleIndex.Indexing.Index">Index</see> records that match the the specified <see cref="CheesyTot.AzureTables.SimpleIndex.Indexing.IndexKey">IndexKey</see>.
+        /// </summary>
+        /// <param name="indexKey"></param>
+        /// <returns></returns>
         public async Task<IEnumerable<Index>> GetAllIndexesAsync(IndexKey indexKey)
         {
             return await _tableClient.QueryAsync<Index>($"PartitionKey eq '{indexKey}'").AsEnumerableAsync();
         }
 
+        /// <summary>
+        /// Retrieve the first <see cref="CheesyTot.AzureTables.SimpleIndex.Indexing.Index">Index</see> record that matches the the specified <see cref="CheesyTot.AzureTables.SimpleIndex.Indexing.IndexKey">IndexKey</see> or throw an <see cref="System.InvalidOperationException">InvalidOperationException</see> if none is found.
+        /// </summary>
+        /// <param name="indexKey"></param>
+        /// <returns></returns>
+        /// <exception cref="System.InvalidOperationException">Thrown if there are no matches.</exception>
         public async Task<Index> GetFirstIndexAsync(IndexKey indexKey)
         {
             var partitionKey = $"PartitionKey eq '{indexKey}'";
@@ -94,20 +138,34 @@ namespace CheesyTot.AzureTables.SimpleIndex.Indexing
             return await foo.FirstAsync();
         }
 
+        /// <summary>
+        /// Retrieve the first <see cref="CheesyTot.AzureTables.SimpleIndex.Indexing.Index">Index</see> record that matches the the specified <see cref="CheesyTot.AzureTables.SimpleIndex.Indexing.IndexKey">IndexKey</see> or null if none is found.
+        /// </summary>
+        /// <param name="indexKey"></param>
+        /// <returns></returns>
         public async Task<Index> GetFirstIndexOrDefaultAsync(IndexKey indexKey)
         {
             return await _tableClient.QueryAsync<Index>($"PartitionKey eq '{indexKey}'", default(int?), default(IEnumerable<string>), default(CancellationToken)).FirstOrDefaultAsync();
         }
 
+        /// <summary>
+        /// Retrieve a single <see cref="CheesyTot.AzureTables.SimpleIndex.Indexing.Index">Index</see> record that matches the the specified <see cref="CheesyTot.AzureTables.SimpleIndex.Indexing.IndexKey">IndexKey</see> or throw and <see cref="System.InvalidOperationException">InvalidOperationException</see> if either none or more than one are found.
+        /// </summary>
+        /// <param name="indexKey"></param>
+        /// <returns></returns>
+        /// <exception cref="System.InvalidOperationException">Thrown if there are no matches or if there are more than one match.</exception>
         public async Task<Index> GetSingleIndexAsync(IndexKey indexKey)
         {
             var result = _tableClient.QueryAsync<Index>($"PartitionKey eq '{indexKey}'", default(int?), default(IEnumerable<string>), default(CancellationToken));
-            var qq = await result.AsEnumerableAsync();
-            return qq.Single();
-            
-            //return await result.SingleAsync();
+            return await result.SingleAsync();
         }
 
+        /// <summary>
+        /// Retrieve a single <see cref="CheesyTot.AzureTables.SimpleIndex.Indexing.Index">Index</see> record that matches the the specified <see cref="CheesyTot.AzureTables.SimpleIndex.Indexing.IndexKey">IndexKey</see>, null if none is found, or throw an <see cref="System.InvalidOperationException">InvalidOperationException</see> if more than one is found.
+        /// </summary>
+        /// <param name="indexKey"></param>
+        /// <returns></returns>
+        /// <exception cref="System.InvalidOperationException">Thrown if there is more than one match.</exception>
         public async Task<Index> GetSingleIndexOrDefaultAsync(IndexKey indexKey)
         {
             var partitionKey = $"PartitionKey eq '{indexKey}'";
