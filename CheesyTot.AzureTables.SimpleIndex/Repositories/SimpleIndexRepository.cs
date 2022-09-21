@@ -70,10 +70,10 @@ namespace CheesyTot.AzureTables.SimpleIndex.Repositories
             if (entity == null)
                 throw new ArgumentNullException(nameof(entity));
 
+            await TableClient.AddEntityAsync(entity);
+
             foreach (var propertyInfo in IndexKey.GetIndexedPropertyInfos<T>())
                 await IndexData.AddAsync(entity, propertyInfo);
-
-            await TableClient.AddEntityAsync(entity);
         }
 
         /// <summary>

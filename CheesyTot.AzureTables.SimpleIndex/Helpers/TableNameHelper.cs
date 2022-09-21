@@ -24,7 +24,7 @@ namespace CheesyTot.AzureTables.SimpleIndex.Helpers
             if (string.IsNullOrWhiteSpace(tablePrefix) && !Regex.IsMatch(result.Substring(0, 1), "[A-z]"))
                 result = $"X{result}";
 
-            var maxLength = 63 - (tablePrefix?.Length ?? 0) - (indexTableSuffix?.Length) ?? 0;
+            var maxLength = 63 - (tablePrefix?.Length ?? 0) - (indexTableSuffix?.Length ?? 0);
 
             if (result.Length > maxLength)
                 result = result.Substring(0, maxLength);
