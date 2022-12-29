@@ -343,5 +343,17 @@ namespace CheesyTot.AzureTables.SimpleIndex.Tests
         {
             await _indexData.GetSingleIndexOrDefaultAsync(_indexKeys[0]);
         }
+
+        [TestMethod("IndexData: HasIndexedProperties returns true if type has indexed properties.")]
+        public void IndexKey_HasIndexPropertiesReturnsTrueIfTypeHasIndexedProperties()
+        {
+            Assert.IsTrue(IndexKey.HasIndexedProperties<TestEntity>());
+        }
+
+        [TestMethod("IndexData: HasIndexedProperties returns false if type does not have indexed properties.")]
+        public void IndexKey_HasIndexPropertiesReturnsFalsIfTypeDoesNotHaveIndexedProperties()
+        {
+            Assert.IsFalse(IndexKey.HasIndexedProperties<UnIndexedEntity>());
+        }
     }
 }

@@ -137,7 +137,7 @@ namespace CheesyTot.AzureTables.SimpleIndex.Indexing
         /// <returns></returns>
         public async Task<IEnumerable<Index>> GetAllIndexesAsync(IndexKey indexKey)
         {
-            if(_tableClient== null)
+            if(_tableClient != null)
                 return await _tableClient.QueryAsync<Index>($"PartitionKey eq '{indexKey}'").AsEnumerableAsync();
 
             return default;
