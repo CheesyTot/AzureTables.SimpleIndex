@@ -1,6 +1,8 @@
 ﻿using Azure.Data.Tables;
 using CheesyTot.AzureTables.SimpleIndex.Attributes;
 using System;
+using System.Collections;
+using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using System.Text.RegularExpressions;
@@ -127,10 +129,26 @@ namespace CheesyTot.AzureTables.SimpleIndex.Indexing
         /// <returns></returns>
         public static PropertyInfo[] GetIndexedPropertyInfos<T>() where T: class, ITableEntity, new()
         {
+            return getIndexedPropertyInfos<T>().ToArray();
+        }
+
+        /// <summary>
+        /// Gets a boolean that determines whether any properties in the <typeparamref name="T">entity type</typeparamref> are decorated with the <see cref="CheesyTot.AzureTables.SimpleIndex.Attributes.SimpleIndexAttribute">SimpleIndexAttribute</see>.
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <returns>
+        /// True if the type has properties decorated with the <see cref="CheesyTot.AzureTables.SimpleIndex.Attributes.SimpleIndexAttribute">SimpleIndexAttribute</see>, False if it does not.
+        /// </returns>
+        public static bool HasIndexedProperties<T>() where T : class, ITableEntity, new()
+        {
+            return getIndexedPropertyInfos<T>().Any();
+        }
+
+        private static IEnumerable<PropertyInfo> getIndexedPropertyInfos<T>() where T : class, ITableEntity, new()
+        {
             return typeof(T)
                 .GetProperties(BindingFlags.Public | BindingFlags.Instance)
-                .Where(x => Attribute.IsDefined(x, typeof(SimpleIndexAttribute)))
-                .ToArray();
+                .Where(x => Attribute.IsDefined(x, typeof(SimpleIndexAttribute)));
         }
     }
 }
