@@ -26,5 +26,8 @@ namespace CheesyTot.AzureTables.SimpleIndex.Tests
         public string IndexedProperty2 { get; set; }
 
         public string NormalProperty { get; set; }
+
+        [SimpleIndex]
+        public string CalculatedProperty => $"{IndexedProperty1}|{NormalProperty}";
     }
 }

@@ -66,7 +66,7 @@ namespace CheesyTot.AzureTables.SimpleIndex.Tests
         {
             var entity = getTestEntity();
             await _repository.AddAsync(entity);
-            _moqIndexData.Verify(x => x.AddAsync(entity, It.IsAny<PropertyInfo>()), Times.Exactly(2));
+            _moqIndexData.Verify(x => x.AddAsync(entity, It.IsAny<PropertyInfo>()), Times.Exactly(3));
         }
 
         [TestMethod("AddAsync: Does not call IndexData.AddAsync for normal properties")]
@@ -97,7 +97,7 @@ namespace CheesyTot.AzureTables.SimpleIndex.Tests
         {
             var entity = getTestEntity();
             await _repository.DeleteAsync(entity);
-            _moqIndexData.Verify(x => x.DeleteAsync(entity, It.IsAny<PropertyInfo>()), Times.Exactly(2));
+            _moqIndexData.Verify(x => x.DeleteAsync(entity, It.IsAny<PropertyInfo>()), Times.Exactly(3));
         }
 
         [TestMethod("DeleteAsync: Does not call IndexData.DeleteAsync for normal properties")]
