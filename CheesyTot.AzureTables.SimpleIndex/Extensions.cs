@@ -4,7 +4,9 @@ using CheesyTot.AzureTables.SimpleIndex.Attributes;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Text.RegularExpressions;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace CheesyTot.AzureTables.SimpleIndex
@@ -19,25 +21,17 @@ namespace CheesyTot.AzureTables.SimpleIndex
         /// <returns></returns>
         public static async Task<IEnumerable<T>> AsEnumerableAsync<T>(this AsyncPageable<T> asyncPageable) where T : class, ITableEntity, new()
         {
-            if (asyncPageable == null)
-                return Enumerable.Empty<T>();
-
-            var enumerator = asyncPageable.GetAsyncEnumerator();
             var result = new List<T>();
-
-            try
+            
+            if(asyncPageable != null)
             {
-                while (await enumerator.MoveNextAsync())
+                await foreach (var page in asyncPageable.AsPages())
                 {
-                    result.Add(enumerator.Current);
+                    result.AddRange(page.Values);
                 }
             }
-            finally
-            {
-                await enumerator.DisposeAsync();
-            }
 
-            return result;
+            return result.AsEnumerable();
         }
 
         /// <summary>
@@ -49,21 +43,12 @@ namespace CheesyTot.AzureTables.SimpleIndex
         /// <exception cref="InvalidOperationException">Thrown if there are no items.</exception>
         public static async Task<T> FirstAsync<T>(this AsyncPageable<T> asyncPageable) where T : class, ITableEntity, new()
         {
-            if (asyncPageable != null)
-            {
-                var enumerator = asyncPageable.GetAsyncEnumerator();
+            if (asyncPageable == null)
+                throw new InvalidOperationException("The input sequence contains no elements.");
 
-                try
-                {
-                    while (await enumerator.MoveNextAsync())
-                    {
-                        return enumerator.Current;
-                    }
-                }
-                finally
-                {
-                    await enumerator.DisposeAsync();
-                }
+            await foreach (var page in asyncPageable.AsPages())
+            {
+                return page.Values.First();
             }
 
             throw new InvalidOperationException("The input sequence contains no elements.");
@@ -77,21 +62,12 @@ namespace CheesyTot.AzureTables.SimpleIndex
         /// <returns></returns>
         public static async Task<T> FirstOrDefaultAsync<T>(this AsyncPageable<T> asyncPageable) where T : class, ITableEntity, new()
         {
-            if (asyncPageable != null)
-            {
-                var enumerator = asyncPageable.GetAsyncEnumerator();
+            if (asyncPageable == null)
+                throw new InvalidOperationException("The input sequence contains no elements.");
 
-                try
-                {
-                    while (await enumerator.MoveNextAsync())
-                    {
-                        return enumerator.Current;
-                    }
-                }
-                finally
-                {
-                    await enumerator.DisposeAsync();
-                }
+            await foreach (var page in asyncPageable.AsPages())
+            {
+                return page.Values.FirstOrDefault();
             }
 
             return default;
@@ -106,29 +82,15 @@ namespace CheesyTot.AzureTables.SimpleIndex
         /// <exception cref="InvalidOperationException">Thrown if there are no items in the collection.</exception>
         public static async Task<T> SingleOrDefaultAsync<T>(this AsyncPageable<T> asyncPageable) where T : class, ITableEntity, new()
         {
-            T result = default;
+            if (asyncPageable == null)
+                throw new InvalidOperationException("The input sequence contains no elements.");
 
-            if (asyncPageable != null)
+            await foreach (var page in asyncPageable.AsPages())
             {
-                var enumerator = asyncPageable.GetAsyncEnumerator();
-                var count = 0;
-
-                try
-                {
-                    while (await enumerator.MoveNextAsync())
-                    {
-                        if (++count > 1)
-                            throw new InvalidOperationException("The input sequence contains more than one element.");
-                        result = enumerator.Current;
-                    }
-                }
-                finally
-                {
-                    await enumerator.DisposeAsync();
-                }
+                return page.Values.SingleOrDefault();
             }
 
-            return result;
+            return default;
         }
 
         /// <summary>
@@ -140,28 +102,12 @@ namespace CheesyTot.AzureTables.SimpleIndex
         /// <exception cref="InvalidOperationException"></exception>
         public static async Task<T> SingleAsync<T>(this AsyncPageable<T> asyncPageable) where T : class, ITableEntity, new()
         {
-            if (asyncPageable != null)
+            if(asyncPageable == null)
+                throw new InvalidOperationException("The input sequence contains no elements.");
+
+            await foreach (var page in asyncPageable.AsPages())
             {
-                var enumerator = asyncPageable.GetAsyncEnumerator();
-                T result = default;
-                var count = 0;
-
-                try
-                {
-                    while (await enumerator.MoveNextAsync())
-                    {
-                        if (++count > 1)
-                            throw new InvalidOperationException("The input sequence contains more than one element.");
-                        result = enumerator.Current;
-                    }
-                }
-                finally
-                {
-                    await enumerator.DisposeAsync();
-                }
-
-                if (result != default)
-                    return result;
+                return page.Values.Single();
             }
 
             throw new InvalidOperationException("The input sequence contains no elements.");
@@ -175,23 +121,14 @@ namespace CheesyTot.AzureTables.SimpleIndex
         /// <returns></returns>
         public static async Task<int> CountAsync<T>(this AsyncPageable<T> asyncPageable) where T : class, ITableEntity, new()
         {
+            if (asyncPageable == null)
+                throw new InvalidOperationException("The input sequence contains no elements.");
+
             var count = 0;
 
-            if (asyncPageable != null)
+            await foreach (var page in asyncPageable.AsPages())
             {
-                var enumerator = asyncPageable.GetAsyncEnumerator();
-
-                try
-                {
-                    while (await enumerator.MoveNextAsync())
-                    {
-                        count++;
-                    }
-                }
-                finally
-                {
-                    await enumerator.DisposeAsync();
-                }
+                count += page.Values.Count;
             }
 
             return count;
@@ -205,23 +142,14 @@ namespace CheesyTot.AzureTables.SimpleIndex
         /// <returns></returns>
         public static async Task<long> LongCountAsync<T>(this AsyncPageable<T> asyncPageable) where T : class, ITableEntity, new()
         {
+            if(asyncPageable == null)
+                throw new InvalidOperationException("The input sequence contains no elements.");
+
             var count = 0L;
 
-            if (asyncPageable != null)
+            await foreach (var page in asyncPageable.AsPages())
             {
-                var enumerator = asyncPageable.GetAsyncEnumerator();
-
-                try
-                {
-                    while (await enumerator.MoveNextAsync())
-                    {
-                        count++;
-                    }
-                }
-                finally
-                {
-                    await enumerator.DisposeAsync();
-                }
+                count += page.Values.Count;
             }
 
             return count;
@@ -236,23 +164,34 @@ namespace CheesyTot.AzureTables.SimpleIndex
         public static async Task<bool> AnyAsync<T>(this AsyncPageable<T> asyncPageable) where T : class, ITableEntity, new()
         {
             if (asyncPageable == null)
-                return false;
+                throw new InvalidOperationException("The input sequence contains no elements.");
 
-            var enumerator = asyncPageable.GetAsyncEnumerator();
-
-            try
+            await foreach (var page in asyncPageable.AsPages())
             {
-                while (await enumerator.MoveNextAsync())
-                {
+                if (page.Values.Any())
                     return true;
-                }
-            }
-            finally
-            {
-                await enumerator.DisposeAsync();
             }
 
             return false;
+        }
+
+        /// <summary>
+        /// Extension for IAsyncEnumerable that returns the first item in the enumeration.
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="asyncEnumerable"></param>
+        /// <returns></returns>
+        public static async Task<T> FirstOrDefault<T>(this IAsyncEnumerable<T> asyncEnumerable)
+        {
+            if (asyncEnumerable != null)
+            {
+                await foreach (var item in asyncEnumerable)
+                {
+                    return item;
+                }
+            }
+
+            return default;
         }
 
         /// <summary>
@@ -264,6 +203,9 @@ namespace CheesyTot.AzureTables.SimpleIndex
         /// <returns></returns>
         public static IEnumerable<IEnumerable<T>> InChunksOf<T>(this IEnumerable<T> input, int chunkSize)
         {
+            if (input == null)
+                throw new InvalidOperationException("The input sequence contains no elements.");
+
             if (chunkSize == input.Count())
                 return new[]
                 {

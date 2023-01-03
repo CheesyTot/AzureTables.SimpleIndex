@@ -7,6 +7,8 @@ using CheesyTot.AzureTables.SimpleIndex.Repositories;
 using Azure;
 using System.Threading;
 using CheesyTot.AzureTables.SimpleIndex.Helpers;
+using System.Linq;
+using System.Runtime.CompilerServices;
 
 namespace CheesyTot.AzureTables.SimpleIndex.Indexing
 {
@@ -18,6 +20,7 @@ namespace CheesyTot.AzureTables.SimpleIndex.Indexing
     {
         private bool _hasIndexedProperties;
         private TableClient _tableClient;
+        private short _defaultPageSize;
 
         /// <summary>
         /// Constructor that accepts a <see cref="CheesyTot.AzureTables.SimpleIndex.Repositories.SimpleIndexRepositoryOptions>">SimpleIndexRepositoryOptions</see> parameter.
@@ -25,6 +28,7 @@ namespace CheesyTot.AzureTables.SimpleIndex.Indexing
         /// <param name="options"></param>
         public IndexData(SimpleIndexRepositoryOptions options)
         {
+            _defaultPageSize = options.DefaultPageSize;
             _hasIndexedProperties = IndexKey.HasIndexedProperties<T>();
             if(_hasIndexedProperties)
             {
@@ -141,6 +145,39 @@ namespace CheesyTot.AzureTables.SimpleIndex.Indexing
                 return await _tableClient.QueryAsync<Index>($"PartitionKey eq '{indexKey}'").AsEnumerableAsync();
 
             return default;
+        }
+
+        /// <summary>
+        /// Page through <see cref="CheesyTot.AzureTables.SimpleIndex.Indexing.Index">Index</see> records that match the the specified <see cref="CheesyTot.AzureTables.SimpleIndex.Indexing.IndexKey">IndexKey</see>.
+        /// </summary>
+        /// <param name="indexKey"></param>
+        /// <param name="pageSize"></param>
+        /// <param name="continuationToken"></param>
+        /// <returns></returns>
+        public async Task<PagedResult<Index>> PageIndexes(IndexKey indexKey, int? pageSize = null, string continuationToken = null)
+        {
+            var result = PagedResult<Index>.Empty;
+
+            if(_tableClient != null)
+            {
+                var pSize = pageSize ?? _defaultPageSize;
+                var pageable = _tableClient.QueryAsync<Index>($"PartitionKey eq '{indexKey}'", pSize);
+                
+                var pages = string.IsNullOrWhiteSpace(continuationToken)
+                    ? pageable.AsPages()
+                    : pageable.AsPages(continuationToken);
+                
+                var page = await pages.FirstOrDefault();
+
+                if (page != null)
+                    result = new PagedResult<Index>
+                    {
+                        ContinuationToken = page.ContinuationToken,
+                        Results = page.Values.AsEnumerable()
+                    };
+            }
+
+            return result;
         }
 
         /// <summary>

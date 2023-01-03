@@ -10,6 +10,8 @@ namespace CheesyTot.AzureTables.SimpleIndex.Tests
         private AsyncPageable<TestEntity> _asyncPageable;
         private AsyncPageable<TestEntity> _emptyAsyncPageable;
         private AsyncPageable<TestEntity> _singleAsyncPageable;
+        private IAsyncEnumerable<TestEntity> _asyncEnumerable;
+        private IAsyncEnumerable<TestEntity> _emptyAsyncEnumerable;
 
         [TestInitialize]
         public void TestInitialize()
@@ -37,7 +39,9 @@ namespace CheesyTot.AzureTables.SimpleIndex.Tests
                 new TestPage<TestEntity>(_originalEnumerable.Skip(10).ToArray(), Guid.NewGuid().ToString()),
             });
 
+            _asyncEnumerable = _originalEnumerable.ToAsyncEnumerable();
             _emptyAsyncPageable = AsyncPageable<TestEntity>.FromPages(Enumerable.Empty<Page<TestEntity>>());
+            _emptyAsyncEnumerable = AsyncEnumerable.Empty<TestEntity>();
 
             _singleAsyncPageable = AsyncPageable<TestEntity>.FromPages(new[]
             {
@@ -150,6 +154,13 @@ namespace CheesyTot.AzureTables.SimpleIndex.Tests
         {
             var testVal = await _emptyAsyncPageable.AnyAsync();
             Assert.IsFalse(testVal);
+        }
+
+        [TestMethod("FirstOrDefault for IAsyncEnumerable returns default if sequence is empty")]
+        public async Task FirstOfDefaultForIAsyncEnumerableReturnsDefaultIfSequenceIsEmpty()
+        {
+            var testVal = await _emptyAsyncEnumerable.FirstOrDefault();
+            Assert.IsNull(testVal);
         }
 
         [TestMethod("InChunksOf returns expected number of chunks")]

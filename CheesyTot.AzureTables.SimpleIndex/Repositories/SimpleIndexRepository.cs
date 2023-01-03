@@ -22,6 +22,7 @@ namespace CheesyTot.AzureTables.SimpleIndex.Repositories
     {
         private Regex rxSingleAlphaCharacter = new Regex("[A-z]", RegexOptions.Compiled);
         private Regex rxNonAlphanumericCharacter = new Regex("[^A-z0-9]", RegexOptions.Compiled);
+        private int _defaultPageSize;
 
         /// <summary>
         /// Constructor that accepts <paramref name="options"></paramref> and creates the entity and index tables in Azure Table Storage.
@@ -36,6 +37,8 @@ namespace CheesyTot.AzureTables.SimpleIndex.Repositories
             TableClient.CreateIfNotExists();
 
             IndexData = new IndexData<T>(options.CurrentValue);
+
+            _defaultPageSize = options.CurrentValue.DefaultPageSize;
         }
 
         /// <summary>
@@ -103,12 +106,31 @@ namespace CheesyTot.AzureTables.SimpleIndex.Repositories
             await TableClient.QueryAsync<T>().AsEnumerableAsync();
 
         /// <summary>
+        /// Page through all entities.
+        /// </summary>
+        /// <param name="pageSize"></param>
+        /// <param name="continuationToken"></param>
+        /// <returns></returns>
+        public virtual async Task<PagedResult<T>> PageAsync(int? pageSize = null, string continuationToken = null) =>
+            await PagedQueryAsync(null, pageSize, continuationToken);
+
+        /// <summary>
         /// Get all entities with the specified <paramref name="partitionKey">PartitionKey</paramref>.
         /// </summary>
         /// <param name="partitionKey"></param>
         /// <returns></returns>
         public virtual async Task<IEnumerable<T>> GetAsync(string partitionKey) =>
             await TableClient.QueryAsync<T>($"PartitionKey eq '{partitionKey}'").AsEnumerableAsync();
+
+        /// <summary>
+        /// Page through entities with the specified <paramref name="partitionKey">PartitionKey</paramref>.
+        /// </summary>
+        /// <param name="partitionKey"></param>
+        /// <param name="pageSize"></param>
+        /// <param name="continuationToken"></param>
+        /// <returns></returns>
+        public virtual async Task<PagedResult<T>> PageAsync(string partitionKey, int? pageSize = null, string continuationToken = null) =>
+            await PagedQueryAsync($"PartitionKey eq '{partitionKey}'", pageSize, continuationToken);
 
         /// <summary>
         /// Get an entity by its <paramref name="partitionKey">PartitionKey</paramref> and <paramref name="rowKey">RowKey</paramref>.
@@ -152,6 +174,35 @@ namespace CheesyTot.AzureTables.SimpleIndex.Repositories
             }
 
             return Enumerable.Empty<T>();
+        }
+
+        /// <summary>
+        /// Page through the entities that match the indexed property name and value.
+        /// </summary>
+        /// <remarks>The property must be decorated with the <see cref="CheesyTot.AzureTables.SimpleIndex.Attributes.SimpleIndexAttribute">SimpleIndexAttribute</see>.</remarks>
+        /// <param name="propertyName"></param>
+        /// <param name="propertyValue"></param>
+        /// <param name="pageSize"></param>
+        /// <param name="continuationToken"></param>
+        /// <returns></returns>
+        public virtual async Task<PagedResult<T>> PageByIndexedPropertyAsync(string propertyName, object propertyValue, int? pageSize = null, string continuationToken = null)
+        {
+            if(IndexKey.HasIndexedProperties<T>())
+            {
+                var indexKey = IndexKey.GetIndexKey<T>(propertyName, propertyValue);
+
+                var indexes = await IndexData.PageIndexes(indexKey, pageSize, continuationToken);
+                if (indexes == null || !indexes.Results.Any())
+                    return PagedResult<T>.Empty;
+
+                return new PagedResult<T>
+                {
+                    ContinuationToken = indexes.ContinuationToken,
+                    Results = await GetByIndexesAsync(indexes.Results)
+                };
+            }
+
+            return PagedResult<T>.Empty;
         }
 
         /// <summary>
@@ -251,7 +302,36 @@ namespace CheesyTot.AzureTables.SimpleIndex.Repositories
         /// <returns></returns>
         public virtual async Task<IEnumerable<T>> QueryAsync(string filter)
         {
-            return await TableClient.QueryAsync<T>(filter, default(int?), default(IEnumerable<string>), CancellationToken.None).AsEnumerableAsync();
+            return await TableClient.QueryAsync<T>(filter, default, default, CancellationToken.None).AsEnumerableAsync();
+        }
+
+        /// <summary>
+        /// Pages through an entity query.
+        /// </summary>
+        /// <param name="filter"></param>
+        /// <param name="pageSize"></param>
+        /// <param name="continuationToken"></param>
+        /// <returns></returns>
+        public virtual async Task<PagedResult<T>> PagedQueryAsync(string filter, int? pageSize = null, string continuationToken = null)
+        {
+            var result = PagedResult<T>.Empty;
+            var pSize = pageSize ?? _defaultPageSize;
+            var pageable = TableClient.QueryAsync<T>(filter, pSize, null, CancellationToken.None);
+
+            var pages = string.IsNullOrWhiteSpace(continuationToken)
+                ? pageable.AsPages()
+                : pageable.AsPages(continuationToken);
+
+            var page = await pages.FirstOrDefault();
+
+            if(page != null)
+                result = new PagedResult<T>
+                {
+                    ContinuationToken = page.ContinuationToken,
+                    Results = page.Values.AsEnumerable()
+                };
+
+            return result;
         }
 
         /// <summary>

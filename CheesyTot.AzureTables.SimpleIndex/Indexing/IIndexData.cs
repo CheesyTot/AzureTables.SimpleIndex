@@ -1,4 +1,5 @@
 ﻿using Azure.Data.Tables;
+using CheesyTot.AzureTables.SimpleIndex.Repositories;
 using System.Collections.Generic;
 using System.Reflection;
 using System.Threading.Tasks;
@@ -33,6 +34,15 @@ namespace CheesyTot.AzureTables.SimpleIndex.Indexing
         /// <param name="indexKey"></param>
         /// <returns></returns>
         Task<IEnumerable<Index>> GetAllIndexesAsync(IndexKey indexKey);
+
+        /// <summary>
+        /// Page through <see cref="CheesyTot.AzureTables.SimpleIndex.Indexing.Index">Index</see> records that match the the specified <see cref="CheesyTot.AzureTables.SimpleIndex.Indexing.IndexKey">IndexKey</see>.
+        /// </summary>
+        /// <param name="indexKey"></param>
+        /// <param name="pageSize"></param>
+        /// <param name="continuationToken"></param>
+        /// <returns></returns>
+        Task<PagedResult<Index>> PageIndexes(IndexKey indexKey, int? pageSize = null, string continuationToken = null);
 
         /// <summary>
         /// Retrieve the first <see cref="CheesyTot.AzureTables.SimpleIndex.Indexing.Index">Index</see> record that matches the the specified <see cref="CheesyTot.AzureTables.SimpleIndex.Indexing.IndexKey">IndexKey</see> or throw an <see cref="System.InvalidOperationException">InvalidOperationException</see> if none is found.

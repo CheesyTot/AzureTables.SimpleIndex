@@ -75,6 +75,9 @@ namespace CheesyTot.AzureTables.SimpleIndex.Tests
             _moqTableClient.Setup(x => x.QueryAsync<Indexing.Index>($"PartitionKey eq '{_indexKeys[0]}'", default(int?), default(IEnumerable<string>), default(CancellationToken))).Returns(_asyncPageables[0]);
             _moqTableClient.Setup(x => x.QueryAsync<Indexing.Index>($"PartitionKey eq '{_indexKeys[2]}'", default(int?), default(IEnumerable<string>), default(CancellationToken))).Returns(_asyncPageables[1]);
             _moqTableClient.Setup(x => x.QueryAsync<Indexing.Index>($"PartitionKey eq '{_indexKeys[3]}'", default(int?), default(IEnumerable<string>), default(CancellationToken))).Returns(_asyncPageables[2]);
+            _moqTableClient.Setup(x => x.QueryAsync<Indexing.Index>($"PartitionKey eq '{_indexKeys[0]}'", It.IsAny<int>(), default(IEnumerable<string>), default(CancellationToken))).Returns(_asyncPageables[0]);
+            _moqTableClient.Setup(x => x.QueryAsync<Indexing.Index>($"PartitionKey eq '{_indexKeys[2]}'", It.IsAny<int>(), default(IEnumerable<string>), default(CancellationToken))).Returns(_asyncPageables[0]);
+            _moqTableClient.Setup(x => x.QueryAsync<Indexing.Index>($"PartitionKey eq '{_indexKeys[3]}'", It.IsAny<int>(), default(IEnumerable<string>), default(CancellationToken))).Returns(_asyncPageables[0]);
         }
 
         [TestMethod("IndexKey: Invalid characters are sanitized for PropertyValue")]
@@ -288,6 +291,13 @@ namespace CheesyTot.AzureTables.SimpleIndex.Tests
             _moqTableClient.Verify(x => x.QueryAsync<Indexing.Index>($"PartitionKey eq '{_indexKeys[0]}'", null, null, CancellationToken.None), Times.Once);
         }
 
+        [TestMethod("IndexData: PageIndexes calls TableClient.Query<Index>")]
+        public async Task IndexData_PageIndexesCallsTableClientquery()
+        {
+            await _indexData.PageIndexes(_indexKeys[0], 10);
+            _moqTableClient.Verify(x => x.QueryAsync<Indexing.Index>($"PartitionKey eq '{_indexKeys[0]}'", 10, null, CancellationToken.None), Times.Once);
+        }
+
         [TestMethod("IndexData: GetFirstIndexAsync calls TableClient.Query<Index>")]
         public async Task IndexData_GetFirstIndexAsyncCallsTableClientQuery()
         {
@@ -334,7 +344,8 @@ namespace CheesyTot.AzureTables.SimpleIndex.Tests
         public async Task IndexData_GetSingleIndexOrDefaultAsyncCallsTableClientQuery()
         {
             await _indexData.GetSingleIndexOrDefaultAsync(_indexKeys[2]);
-            _moqTableClient.Verify(x => x.QueryAsync<Indexing.Index>($"PartitionKey eq '{_indexKeys[2]}'", null, null, CancellationToken.None), Times.Once);
+            var filter = $"PartitionKey eq '{_indexKeys[2]}'";
+            _moqTableClient.Verify(x => x.QueryAsync<Indexing.Index>(filter, null, null, CancellationToken.None), Times.Once);
         }
 
         [TestMethod("IndexData: GetSingleOrDefaultAsync throws if more than one object in the sequence")]

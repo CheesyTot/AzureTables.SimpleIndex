@@ -38,11 +38,19 @@ namespace CheesyTot.AzureTables.SimpleIndex.Tests
             return Azure.Response.FromValue(entity, default);
         }
 
+        private AsyncPageable<TestEntity> getAsyncPageable(string key)
+        {
+            var page1 = Page<TestEntity>.FromValues(new[] { _entities["GetAsync1"] }, "continuationToken", Mock.Of<Response>());
+            return AsyncPageable<TestEntity>.FromPages(new[] { page1 });
+        }
+
         [TestInitialize]
         public void TestInit()
         {
             _moqTableClient = new Mock<TableClient>();
             _moqTableClient.Setup(x => x.GetEntityAsync<TestEntity>(_entities["GetAsync1"].PartitionKey, _entities["GetAsync1"].RowKey, default(IEnumerable<string>), default(CancellationToken))).Returns(Task.FromResult(getResponse(_entities["GetAsync1"])));
+            _moqTableClient.Setup(x => x.QueryAsync<TestEntity>($"PartitionKey eq '{_entities["GetAsync1"].PartitionKey}'", 10, null, CancellationToken.None)).Returns(getAsyncPageable("GetAsync1"));
+            _moqTableClient.Setup(x => x.QueryAsync<TestEntity>(default(string), 10, null, CancellationToken.None)).Returns(getAsyncPageable("GetAsync1"));
 
             _moqIndexData = new Mock<IIndexData<TestEntity>>();
             _moqIndexData.Setup(x => x.GetAllIndexesAsync(new IndexKey(nameof(TestEntity.IndexedProperty1), "GHI789"))).Returns(Task.FromResult(new[] { _indexes["GetByIndexes1"], _indexes["GetByIndexes2"] }.AsEnumerable()));
@@ -50,6 +58,7 @@ namespace CheesyTot.AzureTables.SimpleIndex.Tests
             _moqIndexData.Setup(x => x.GetSingleIndexAsync(new IndexKey(nameof(TestEntity.IndexedProperty1), "NotFoundValue"))).Throws<InvalidOperationException>();
             _moqIndexData.Setup(x => x.GetFirstIndexAsync(new IndexKey(nameof(TestEntity.IndexedProperty1), "NotFoundValue"))).Throws<InvalidOperationException>();
             _moqIndexData.Setup(x => x.GetSingleIndexOrDefaultAsync(new IndexKey(nameof(TestEntity.IndexedProperty1), _entities["GetSingleByIndexedPropertyAsync"].IndexedProperty1))).Returns(Task.FromResult(_indexes["GetSingleByIndexedPropertyAsync"]));
+            _moqIndexData.Setup(x => x.PageIndexes(new IndexKey(nameof(TestEntity.IndexedProperty1), "GHI789"), 10, null)).Returns(Task.FromResult(new PagedResult<Indexing.Index> { ContinuationToken = null, Results = new[] { _indexes["GetByIndexes1"], _indexes["GetByIndexes2"] }.AsEnumerable() } ));
 
             _repository = new SimpleIndexRepository<TestEntity>(_moqTableClient.Object, _moqIndexData.Object);
         }
@@ -123,6 +132,13 @@ namespace CheesyTot.AzureTables.SimpleIndex.Tests
             _moqTableClient.Verify(x => x.QueryAsync<TestEntity>(default(string), null, null, CancellationToken.None), Times.Once);
         }
 
+        [TestMethod("PageAsync: Calls TableClient.QueryAsync")]
+        public async Task PageAsync_CallsTableClientQueryAsync()
+        {
+            await _repository.PageAsync(10, null);
+            _moqTableClient.Verify(x => x.QueryAsync<TestEntity>(default(string), 10, null, CancellationToken.None), Times.Once);
+        }
+
         [TestMethod("GetAsync(partitionKey): Calls TableClient.QueryAsync([partitionKeyFilter])")]
         public async Task GetAsyncPartitionKey_CallsQueryAsyncWithPartitionKeyFilter()
         {
@@ -130,6 +146,14 @@ namespace CheesyTot.AzureTables.SimpleIndex.Tests
             var filter = $"PartitionKey eq '{partitionKey}'";
             await _repository.GetAsync(partitionKey);
             _moqTableClient.Verify(x => x.QueryAsync<TestEntity>(filter, null, null, CancellationToken.None), Times.Once);
+        }
+
+        [TestMethod("PageAsync(partitionKey): Calls TableClient.QueryAsync")]
+        public async Task PageAsyncPartitionKey_CallsQueryAsync()
+        {
+            var partitionKey = _entities["GetAsync1"].PartitionKey;
+            await _repository.PageAsync(partitionKey, 10, null);
+            _moqTableClient.Verify(x => x.QueryAsync<TestEntity>($"PartitionKey eq '{partitionKey}'", 10, null, CancellationToken.None), Times.Once);
         }
 
         [TestMethod("GetAsync(partitionKey, rowKey): Calls TableClient.GetEntityAsync<T>(partitionKey, rowKey)")]
@@ -208,6 +232,14 @@ namespace CheesyTot.AzureTables.SimpleIndex.Tests
             _moqTableClient.Verify(x => x.QueryAsync<TestEntity>(filter, default(int?), default(IEnumerable<string>), CancellationToken.None), Times.Once);
         }
 
+        [TestMethod("PagedQueryAsync: Calls TableClient.QueryAsync")]
+        public async Task PagedQueryAsync_CallsTableClientQueryAsync() 
+        {
+            string filter = $"PartitionKey eq '{_entities["GetAsync1"].PartitionKey}'";
+            await _repository.PagedQueryAsync(filter, 10, null);
+            _moqTableClient.Verify(x => x.QueryAsync<TestEntity>(filter, 10, null, CancellationToken.None), Times.Once);
+        }
+
         [TestMethod("GetByIndexedPropertyAsync: Calls IndexData.GetAllIndexesAsync")]
         public async Task GetByIndexedPropertyAsyncCallsIndexDataGetAllIndexesAsync()
         {
@@ -218,6 +250,18 @@ namespace CheesyTot.AzureTables.SimpleIndex.Tests
             await _repository.GetByIndexedPropertyAsync(propertyName, propertyValue);
 
             _moqIndexData.Verify(x => x.GetAllIndexesAsync(indexKey), Times.Once);
+        }
+
+        [TestMethod("PageByIndexedPropertyAsync: Calls IndexData.PageIndexesAsync")]
+        public async Task PageByIndexedPropertyAsync_CallsIndexDataPageIndexesAsync()
+        {
+            var propertyName = nameof(TestEntity.IndexedProperty1);
+            var propertyValue = _entities["GetByIndexes1"].IndexedProperty1;
+            var indexKey = new IndexKey(propertyName, propertyValue);
+
+            await _repository.PageByIndexedPropertyAsync(propertyName, propertyValue, 10, null);
+
+            _moqIndexData.Verify(x => x.PageIndexes(indexKey, 10, null), Times.Once);
         }
 
         [TestMethod("GetByIndexedPropertiesAsync: Calls TableClient.GetEntityAsync for each index result")]
@@ -232,6 +276,18 @@ namespace CheesyTot.AzureTables.SimpleIndex.Tests
             _moqTableClient.Verify(x => x.GetEntityAsync<TestEntity>(_entities["GetByIndexes2"].PartitionKey, _entities["GetByIndexes2"].RowKey, default(IEnumerable<string>), default(CancellationToken)), Times.Once);
         }
 
+        [TestMethod("PageByIndexedPropertiesAsync: Calls TableClient.GetEntityAsync for each index result")]
+        public async Task PageByIndexedPropertiesAsync_CallsTableClientGetEntityAsyncForEachIndexResult()
+        {
+            var propertyName = nameof(TestEntity.IndexedProperty1);
+            var propertyValue = _entities["GetByIndexes1"].IndexedProperty1;
+
+            await _repository.PageByIndexedPropertyAsync(propertyName, propertyValue, 10, null);
+
+            _moqTableClient.Verify(x => x.GetEntityAsync<TestEntity>(_entities["GetByIndexes1"].PartitionKey, _entities["GetByIndexes1"].RowKey, default(IEnumerable<string>), default(CancellationToken)), Times.Once);
+            _moqTableClient.Verify(x => x.GetEntityAsync<TestEntity>(_entities["GetByIndexes2"].PartitionKey, _entities["GetByIndexes2"].RowKey, default(IEnumerable<string>), default(CancellationToken)), Times.Once);
+        }
+
         [TestMethod("GetByIndexedPropertiesAsync: Returns empty if no records are found")]
         public async Task GetByIndexedPropertiesAsync_ReturnsEmptyIfNoRecordsAreFound()
         {
@@ -241,6 +297,17 @@ namespace CheesyTot.AzureTables.SimpleIndex.Tests
             var result = await _repository.GetByIndexedPropertyAsync(propertyName, propertyValue);
 
             Assert.IsFalse(result.Any());
+        }
+
+        [TestMethod("PageByIndexedPropertiesAsync: Returns empty if no records are found")]
+        public async Task PageByIndexedPropertiesAsync_ReturnsEmptyIfNoRecordsAreFound()
+        {
+            var propertyName = nameof(TestEntity.IndexedProperty1);
+            var propertyValue = "NotFoundValue";
+
+            var result = await _repository.PageByIndexedPropertyAsync(propertyName, propertyValue, 10, null);
+
+            Assert.IsTrue(result == null || result.Results.Any() == false);
         }
 
         [TestMethod("GetSingleByIndexedPropertyAsync: Calls IndexData.GetSingleIndexOrDefaultAsync")]
